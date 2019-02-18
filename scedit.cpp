@@ -21,6 +21,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using namespace std;
 
+
+#include "exceptions.hpp"
+
 /*
   I'm very sorry for this program. Comments are poor, and naming isn't consistent
   But i'm not going to use it in production enviromment and neither should you!
@@ -78,10 +81,7 @@ int sharenametoid(string sharename) {
   for(int i=0;i<sections.size();i++) {
     if(sections[i].section == sharename) return i;
   }
-  cerr<<"Share with name "<<sharename<<" not found!"<<endl;
-  cerr<<"Exiting now, because it'll fuck rest of the program"<<endl;
-  exit(1);
-  //return -1;
+  throw smbsnfexception;
 }
 
 //converts key to it's index in sections->conf vector
@@ -89,7 +89,7 @@ int paramnametoid(int sectionid, string paramname) {
   for(int i=0;i<sections[sectionid].conf.size();i++) {
     if(sections[sectionid].conf[i].k == paramname) return i;
   }
-  return -1;
+  throw pnfexception;
 }
 
 //sets config like this
@@ -101,22 +101,23 @@ void cmdSet(string sharename, string paramname, string value) {
   if(debug_command_parameters)
   cerr<<sharename<<" "<<paramname<<" "<<value<<endl;
   int sid=sharenametoid(sharename);
-  int pid=paramnametoid(sid,paramname);
-  if(pid == -1) {
-    //create parameter
+  try {
+    int pid=paramnametoid(sid,paramname);
+    //if following code executes, no exception were thrown
+    sections[sid].conf[pid].v=value;
+    sections[sid].conf[pid].writeback=true;
+    if(debug_command_result)
+      cerr<<"Edited parameter "<<paramname<<" in section "<<sharename<<" with value "<<value<<endl;
+  }
+  catch(ParamNotFoundException e) {
+    //parameter doesn't exist, so create it instead of editing
     pair_t p;
     p.k=paramname;
     p.v=value;
     p.writeback=true;
     sections[sid].conf.push_back(p);
     if(debug_command_result)
-    cerr<<"Created parameter "<<paramname<<" in section "<<sharename<<" with value "<<value<<endl;
-  }
-  else {
-    sections[sid].conf[pid].v=value;
-    sections[sid].conf[pid].writeback=true;
-    if(debug_command_result)
-    cerr<<"Edited parameter "<<paramname<<" in section "<<sharename<<" with value "<<value<<endl;
+      cerr<<"Created parameter "<<paramname<<" in section "<<sharename<<" with value "<<value<<endl;
   }
 }
 //creates section like this in config
@@ -129,14 +130,14 @@ void cmdAdd(string sectionname) {
   st.writeback=true;
   sections.push_back(st);
   if(debug_command_result)
-  cerr<<"Created share "<<sectionname<<endl;
+    cerr<<"Created share "<<sectionname<<endl;
 }
 //deletes section like that created above and all parameters
 void cmdDel(string sectionname) {
   int sid=sharenametoid(sectionname);
   sections[sid].writeback=false;
   if(debug_command_result)
-  cerr<<"Deleted share "<<sectionname<<endl;
+    cerr<<"Deleted share "<<sectionname<<endl;
 }
 //deletes one parameter from section
 void cmdDel(string sectionname, string paramname) {
@@ -144,7 +145,7 @@ void cmdDel(string sectionname, string paramname) {
   int pid=paramnametoid(sid,paramname);
   sections[sid].conf[pid].writeback=false;
   if(debug_command_result)
-  cerr<<"Deleted parameter "<<sectionname<<"."<<paramname<<endl;
+    cerr<<"Deleted parameter "<<sectionname<<"."<<paramname<<endl;
 }
 //reads value from sharename parameter
 void cmdGet(string sharename, string paramname) {
@@ -152,15 +153,9 @@ void cmdGet(string sharename, string paramname) {
   cerr<<sharename<<" "<<paramname<<endl;
   int sid=sharenametoid(sharename);
   int pid=paramnametoid(sid,paramname);
-  if(pid == -1) {
-    if(debug_command_result)
-    cerr<<"Parameter not found: "<<sharename<<"."<<paramname<<endl;
-    exit(1);
-  }
-  else {
     cout<<sections[sid].conf[pid].v<<endl;
-  }
 }
+
 //does processing of arguments
 //i have no idea how the fuck this works
 int process(string cmd, string param) {

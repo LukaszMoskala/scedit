@@ -1,6 +1,6 @@
 CC=gcc
 CXX=g++
-CXXFLAGS=-O3 --std=c++17
+CXXFLAGS=-O3 --std=c++17 -fexceptions
 CFLAGS=-O3
 PREFIX=/usr/local
 
