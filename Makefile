@@ -15,3 +15,6 @@ scedit: scedit.o
 
 install:
 	install -m 775 scedit $(PREFIX)/bin/
+
+clean:
+	rm -f scedit.o
