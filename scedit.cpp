@@ -238,6 +238,9 @@ int main(int args, char** argv) {
     cerr<<"under certain conditions; Read attached license file for details."<<endl;
   }
   else {
+    //this message is just for fun (my teacher will see it when he runs my script)
+    //greetings, Mr. Grzegorz
+    cerr<<"Starting SCEDIT Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
     string c(argv[1]);
     string v(argv[2]);
     ifstream smbconffile;
