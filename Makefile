@@ -10,3 +10,6 @@ scedit.o: scedit.cpp
 	$(CXX) $(CXXFLAGS) -c -o scedit.o scedit.cpp
 scedit: scedit.o
 	$(CXX) $(CXXFLAGS) -o  scedit  scedit.o
+
+install:
+	install -m 775 scedit $(PREFIX)/bin/
