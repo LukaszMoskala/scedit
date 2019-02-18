@@ -21,43 +21,82 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using namespace std;
 
+/*
+  I'm very sorry for this program. Comments are poor, and naming isn't consistent
+  But i'm not going to use it in production enviromment and neither should you!
+  I need it for ONE script for ONE exam in school, and my teacher will probably
+  never look up source code of this program, so I don't give a fuck about that
+
+  If you'r in situation like me (that is, you have exam that requires you to
+  write script to set and remove network shares), then you might want to use
+  this program. You should not anyway, and in production enviromment editing
+  samba config file by hand is much better idea
+*/
+
+//verbosity control
+//there is no way of changing this at run-time, so... yeah...
+//but who cares, i'll forget about this program in a week after exam and
+//probably never use it again
 bool debug_input=false;
 bool debug_command_parameters=false;
 bool debug_command_result=true;
 
+
+//returns true if c is whitespace character
 bool isWhistespace(char c) {
   return (c == '\t' || c == '\n' || c == '\r' || c == ' ');
 }
+//finds first non-whitespace character
+//used for finding lines that are comments
+//and that have leading whitespaces
 char firstNonWhitespaceCharacter(string s) {
   for(int i=0;i<s.size();i++) {
     if(!isWhistespace(s[i])) return s[i];
   }
   return 0;
 }
+//pair of key=value
+//if writeback is set to false, this entry will be skipped when
+//writing config file
 struct pair_t {
   string k;
   string v;
   bool writeback=true;
 };
+//used to store sections and it's key=value pairs
+//writeback works as above
 struct section_t {
   string section;
   bool writeback=true;
   vector <pair_t> conf;
 };
+//we have to store this somewhere, don't we?
 vector <section_t> sections;
 
+//converts share name to it's index in sections vector
 int sharenametoid(string sharename) {
   for(int i=0;i<sections.size();i++) {
     if(sections[i].section == sharename) return i;
   }
-  return -1;
+  cerr<<"Share with name "<<sharename<<" not found!"<<endl;
+  cerr<<"Exiting now, because it'll fuck rest of the program"<<endl;
+  exit(1);
+  //return -1;
 }
+
+//converts key to it's index in sections->conf vector
 int paramnametoid(int sectionid, string paramname) {
   for(int i=0;i<sections[sectionid].conf.size();i++) {
     if(sections[sectionid].conf[i].k == paramname) return i;
   }
   return -1;
 }
+
+//sets config like this
+/*
+[sharename]
+  paramname=value
+*/
 void cmdSet(string sharename, string paramname, string value) {
   if(debug_command_parameters)
   cerr<<sharename<<" "<<paramname<<" "<<value<<endl;
@@ -80,6 +119,10 @@ void cmdSet(string sharename, string paramname, string value) {
     cerr<<"Edited parameter "<<paramname<<" in section "<<sharename<<" with value "<<value<<endl;
   }
 }
+//creates section like this in config
+/*
+[sectionname]
+*/
 void cmdAdd(string sectionname) {
   section_t st;
   st.section=sectionname;
@@ -88,12 +131,14 @@ void cmdAdd(string sectionname) {
   if(debug_command_result)
   cerr<<"Created share "<<sectionname<<endl;
 }
+//deletes section like that created above and all parameters
 void cmdDel(string sectionname) {
   int sid=sharenametoid(sectionname);
   sections[sid].writeback=false;
   if(debug_command_result)
   cerr<<"Deleted share "<<sectionname<<endl;
 }
+//deletes one parameter from section
 void cmdDel(string sectionname, string paramname) {
   int sid=sharenametoid(sectionname);
   int pid=paramnametoid(sid,paramname);
@@ -101,35 +146,37 @@ void cmdDel(string sectionname, string paramname) {
   if(debug_command_result)
   cerr<<"Deleted parameter "<<sectionname<<"."<<paramname<<endl;
 }
+//reads value from sharename parameter
 void cmdGet(string sharename, string paramname) {
   if(debug_command_parameters)
   cerr<<sharename<<" "<<paramname<<endl;
   int sid=sharenametoid(sharename);
   int pid=paramnametoid(sid,paramname);
   if(pid == -1) {
-    //CHUUUUUJ
     if(debug_command_result)
-    cerr<<"Sram psa jak sra"<<endl;
+    cerr<<"Parameter not found: "<<sharename<<"."<<paramname<<endl;
+    exit(1);
   }
   else {
     cout<<sections[sid].conf[pid].v<<endl;
   }
 }
-
+//does processing of arguments
+//i have no idea how the fuck this works
 int process(string cmd, string param) {
   if(cmd == "set") {
     int dp=param.find(".");
-    string sn=param.substr(0,dp);
-    string pnv=param.substr(dp+1);
+    string sn=param.substr(0,dp); // get share name
+    string pnv=param.substr(dp+1); //get key=value
     int ep=pnv.find("=");
-    string pn=pnv.substr(0,ep);
-    string v=pnv.substr(ep+1);
+    string pn=pnv.substr(0,ep); //   get key
+    string v=pnv.substr(ep+1);  //   get value
     cmdSet(sn,pn,v);
   }
   if(cmd == "get") {
     int dp=param.find(".");
-    string sn=param.substr(0,dp);
-    string pn=param.substr(dp+1);
+    string sn=param.substr(0,dp); //get share name
+    string pn=param.substr(dp+1); //get key
     cmdGet(sn,pn);
   }
   if(cmd == "add") {
@@ -148,7 +195,10 @@ int process(string cmd, string param) {
   }
   return 1;
 }
+//re-generates new samba config file
 void regen() {
+  //lets make a backup, we'll probably need it because chances that something goes
+  //terribly wrong, are high
   if(rename("/etc/samba/smb.conf","/etc/samba/smb.conf.bak")) {
     cerr<<"rename( /etc/samba/smb.conf, /etc/samba/smb.conf.bak) failed: "<<strerror(errno)<<endl;
     return;
@@ -159,6 +209,8 @@ void regen() {
     cerr<<"Failed to open /etc/samba/smb.conf to write!"<<endl;
     return;
   }
+  //write everything
+  //looks complicated, but it's simple and complicated at the same time
   for(int i=0;i<sections.size();i++) {
     if(sections[i].writeback) {
       wcf<<"["<<sections[i].section<<"]"<<endl;
@@ -176,6 +228,8 @@ int main(int args, char** argv) {
     cerr<<"IT MAY COMPLETELY FUCK YOUR SAMBA CONFIG!"<<endl;
     cerr<<"I MADE IT BECAUSE I NEEDED TO HAVE A WAY TO SCRIPT CREATING SMB SHARES"<<endl;
     cerr<<"FOR MY EXAM! YOU SHOULD NOT BE USING IT AT ALL!"<<endl;
+    cerr<<endl;
+    cerr<<"PROGRAM DOESN'T GIVE A FUCK ABOUT YOU'R COMMENTS! (and will delete them)"<<endl;
     cerr<<endl;
     cerr<<"Usage: scedit set sharename.paramname=value - set parameter in share"<<endl;
     cerr<<"              get sharename.paramname       - get parameter in share"<<endl;
@@ -198,16 +252,21 @@ int main(int args, char** argv) {
       return 1;
     }
     int currentsection=-1;
+    //this parses config file
+    //somehow works, but if your config sections look like this
+    //[ name ]
+    //not like this
+    //[name]
+    //you'r in trouble. Mine doesn't so it works for me
     while(smbconffile.good()) {
       string s;
       getline(smbconffile,s);
       char c=firstNonWhitespaceCharacter(s);
-      if(c == '#' || c == ';') continue;
+      if(c == '#' || c == ';') continue; //skip comments
       if(c == '[') //beginning of section
       {
         currentsection++;
         section_t st;
-
         s=s.substr(1,s.length()-2);
         if(debug_input)
         cerr<<"DBG: using section "<<s<<endl;
@@ -222,6 +281,7 @@ int main(int args, char** argv) {
           string c=s.substr(0,ep);
           string v=s.substr(ep+1);
           //remove leading and trailing whitespaces
+          //copied from stack overflow, i have no idea how that works
           c=std::regex_replace(c, std::regex("^ +| +$|( ) +"), "$1");
           v=std::regex_replace(v, std::regex("^ +| +$|( ) +"), "$1");
           pair_t p;

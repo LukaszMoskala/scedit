@@ -1,3 +1,6 @@
+# PLEASE
+Please don't use this program, it's GARBAGE and barely works
+
 # scedit
 Program to edit smb.conf
 
