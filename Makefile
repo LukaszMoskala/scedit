@@ -1,7 +1,9 @@
 CC=gcc
 CXX=g++
-CXXFLAGS=-O3 --std=c++17 -fexceptions
-CFLAGS=-O3
+#why static? because I need to copy binary to my school computer
+#and expect it to work right away. I will compile it there if needed
+#but linking statically is better for me
+CXXFLAGS=-O3 --std=c++17 -fexceptions --static -static-libgcc
 PREFIX=/usr/local
 
 all: scedit
