@@ -6,7 +6,13 @@ CXX=g++
 CXXFLAGS=-O3 --std=c++17 -fexceptions --static -static-libgcc
 PREFIX=/usr/local
 
-all: scedit
+all: warning scedit
+
+warning:
+	@echo This is NOT meant for production usage!
+	@echo And it takes 8.454 seconds to compile on
+	@echo i5-4670k@4.8GHz. This is GARBAGE, DONT
+	@echo use this program if you dont need to!
 
 scedit.o: scedit.cpp
 	$(CXX) $(CXXFLAGS) -c -o scedit.o scedit.cpp
