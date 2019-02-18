@@ -227,10 +227,12 @@ int main(int args, char** argv) {
     cerr<<"PROGRAM DOESN'T GIVE A FUCK ABOUT YOU'R COMMENTS! (and will delete them)"<<endl;
     cerr<<endl;
     cerr<<"Usage: scedit set sharename.paramname=value - set parameter in share"<<endl;
-    cerr<<"              get sharename.paramname       - get parameter in share"<<endl;
+    cerr<<"              get sharename.paramname       - get parameter in share (*)"<<endl;
     cerr<<"              add sharename                 - create share"<<endl;
     cerr<<"              del sharename                 - delete share"<<endl;
     cerr<<"              del sharename.paramname       - delete parameter from share"<<endl;
+    cerr<<endl;
+    cerr<<"(*) using AWK, GREP and SED in some combination probably would be and faster for scripting"<<endl;
     cerr<<endl;
     cerr<<"scedit Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
     cerr<<"This program comes with ABSOLUTELY NO WARRANTY."<<endl;
