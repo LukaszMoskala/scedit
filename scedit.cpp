@@ -282,6 +282,7 @@ int main(int args, char** argv) {
           string v=s.substr(ep+1);
           //remove leading and trailing whitespaces
           //copied from stack overflow, i have no idea how that works
+          //increases compilation time by 3 seconds, maybe should be moved to another statically-linked file?
           c=std::regex_replace(c, std::regex("^ +| +$|( ) +"), "$1");
           v=std::regex_replace(v, std::regex("^ +| +$|( ) +"), "$1");
           pair_t p;
