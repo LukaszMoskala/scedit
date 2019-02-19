@@ -206,15 +206,26 @@ void regen() {
   }
   //write everything
   //looks complicated, but it's simple and complicated at the same time
+
+  //i'll try to comment this now
+
+  //iterate through all sections in our config file
   for(int i=0;i<sections.size();i++) {
+    //if writeback is set to false, we have to skip it
+    //that's how deleting sections work
     if(sections[i].writeback) {
+      //write section header to config
       wcf<<"["<<sections[i].section<<"]"<<endl;
+      //iterate through all parameters for this section
       for(int j=0;j<sections[i].conf.size();j++) {
+        //if writeback is set to false, skip
         if(sections[i].conf[j].writeback)
+          //write param=value pair to file
           wcf<<"  "<<sections[i].conf[j].k<<"="<<sections[i].conf[j].v<<endl;
       }
     }
   }
+  //finally, close file
   wcf.close();
 }
 int main(int args, char** argv) {
@@ -249,7 +260,7 @@ int main(int args, char** argv) {
     ifstream smbconffile;
     smbconffile.open("/etc/samba/smb.conf");
     if(!smbconffile.is_open()) {
-      cerr<<"ERROR!"<<endl;
+      cerr<<"ERROR: Failed to open smb.conf"<<endl;
       return 1;
     }
     int currentsection=-1;
@@ -270,7 +281,7 @@ int main(int args, char** argv) {
         section_t st;
         s=s.substr(1,s.length()-2);
         if(debug_input)
-        cerr<<"DBG: using section "<<s<<endl;
+          cerr<<"INPUT: using section "<<s<<endl;
         st.section=s;
         st.writeback=true;
         sections.push_back(st);
@@ -284,6 +295,7 @@ int main(int args, char** argv) {
           //remove leading and trailing whitespaces
           //copied from stack overflow, i have no idea how that works
           //increases compilation time by 3 seconds, maybe should be moved to another statically-linked file?
+          //WARINING: If you have double-space in path, or any parameter, then you'r fucked
           c=std::regex_replace(c, std::regex("^ +| +$|( ) +"), "$1");
           v=std::regex_replace(v, std::regex("^ +| +$|( ) +"), "$1");
           pair_t p;
@@ -292,12 +304,13 @@ int main(int args, char** argv) {
           p.writeback=true;
           sections[currentsection].conf.push_back(p);
           if(debug_input)
-          cerr<<"DBG: "<<sections[currentsection].section<<"."<<c<<"="<<v<<endl;
+            cerr<<"INPUT: "<<sections[currentsection].section<<"."<<c<<"="<<v<<endl;
         }
       }
     }
     if(c != "f") {
       process(c,v);
+      //only get command doesn't require to regenerate file
       if(c != "get")
         regen();
     }
@@ -308,18 +321,23 @@ int main(int args, char** argv) {
         cerr<<"Failed to open file "<<v<<endl;
         return 1;
       }
+      //maybe add stdin support?
       while(commands.good()) {
         string s;
         getline(commands, s);
         if(s.length() == 0 || s[0] == '#')
           continue;
+        //first space seperates command from data
         int space=s.find(" ");
+        //split skipping that space
         c=s.substr(0,space);
         v=s.substr(space+1);
         process(c,v);
       }
+      //we'r assuming that there was set/add/del command used and regenerating file
       regen();
     }
   }
 
 }
+//How much will it take until this program makes it's way to /r/programminghorror?
