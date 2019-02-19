@@ -40,7 +40,7 @@ using namespace std;
 //there is no way of changing this at run-time, so... yeah...
 //but who cares, i'll forget about this program in a week after exam and
 //probably never use it again
-bool debug_input=false;
+bool debug_input=true;
 bool debug_command_parameters=false;
 bool debug_command_result=true;
 
@@ -231,6 +231,7 @@ int main(int args, char** argv) {
     cerr<<"              add sharename                 - create share"<<endl;
     cerr<<"              del sharename                 - delete share"<<endl;
     cerr<<"              del sharename.paramname       - delete parameter from share"<<endl;
+    cerr<<"              f   filename                  - execute commands from file filename"<<endl;
     cerr<<endl;
     cerr<<"(*) using AWK, GREP and SED in some combination probably would be and faster for scripting"<<endl;
     cerr<<endl;
@@ -295,9 +296,30 @@ int main(int args, char** argv) {
         }
       }
     }
-    process(c,v);
-    if(c != "get")
-    regen();
+    if(c != "f") {
+      process(c,v);
+      if(c != "get")
+        regen();
+    }
+    else {
+      ifstream commands;
+      commands.open(v.c_str());
+      if(!commands.is_open()) {
+        cerr<<"Failed to open file "<<v<<endl;
+        return 1;
+      }
+      while(commands.good()) {
+        string s;
+        getline(commands, s);
+        if(s.length() == 0 || s[0] == '#')
+          continue;
+        int space=s.find(" ");
+        c=s.substr(0,space);
+        v=s.substr(space+1);
+        process(c,v);
+      }
+      regen();
+    }
   }
 
 }
