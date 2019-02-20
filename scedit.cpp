@@ -17,33 +17,28 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <fstream>
 #include <vector>
 #include <iostream>
-#include <regex>
-
+#include <cstring> //strerror
 using namespace std;
 
+//In your samba config file:
+//[somename]               : this is share name
+//  path=/tmp/path         : this is key and value
+
+//[global] is recognized also as share
+//it just uses diffrent keys
 
 #include "exceptions.hpp"
 
-/*
-  I'm very sorry for this program. Comments are poor, and naming isn't consistent
-  But i'm not going to use it in production enviromment and neither should you!
-  I need it for ONE script for ONE exam in school, and my teacher will probably
-  never look up source code of this program, so I don't give a fuck about that
-
-  If you'r in situation like me (that is, you have exam that requires you to
-  write script to set and remove network shares), then you might want to use
-  this program. You should not anyway, and in production enviromment editing
-  samba config file by hand is much better idea
-*/
-
 //verbosity control
 //there is no way of changing this at run-time, so... yeah...
-//but who cares, i'll forget about this program in a week after exam and
-//probably never use it again
+//TODO: verbosity control using command line options
 bool debug_input=true;
 bool debug_command_parameters=false;
 bool debug_command_result=true;
+bool debug_script=true;
 
+//config file location, loaded from parameter or used default at beginning of main()
+string smbconf;
 
 //returns true if c is whitespace character
 bool isWhistespace(char c) {
@@ -58,6 +53,39 @@ char firstNonWhitespaceCharacter(string s) {
   }
   return 0;
 }
+string stripWhitespaces(string s) {
+  string ret="";
+  for(int i=0;i<s.size();i++)
+    if(!isWhistespace(s[i]))
+      ret+=s[i];
+  return ret;
+}
+string stripLeadingWhitespaces(string s) {
+  int i=-1;
+  while(isWhistespace(s[++i]));
+  return s.substr(i);
+}
+string stripTailingWhitespaces(string s) {
+  int i=s.length();
+  while(isWhistespace(s[--i]));
+  return s.substr(0,i+1);
+}
+
+void split(string src, string tofind, string& out1, string& out2) {
+  int pos=src.find(tofind);
+  if(pos == -1)
+    throw ssnfexception;
+  int len=tofind.length();
+
+  out1=src.substr(0,pos);
+  out2=src.substr(pos+len);
+}
+
+bool writeback=true; //if set to false, program will NOT try to write to smb.conf
+//usefull for testing new functions, as it will not cause any harm to system
+//since changes are made in ram only, and written to disk at the end
+
+
 //pair of key=value
 //if writeback is set to false, this entry will be skipped when
 //writing config file
@@ -66,125 +94,159 @@ struct pair_t {
   string v;
   bool writeback=true;
 };
-//used to store sections and it's key=value pairs
+//used to store shares and it's key=value pairs
 //writeback works as above
-struct section_t {
-  string section;
+struct share_t {
+  string sharename;
   bool writeback=true;
   vector <pair_t> conf;
 };
 //we have to store this somewhere, don't we?
-vector <section_t> sections;
+vector <share_t> shares;
 
-//converts share name to it's index in sections vector
+/* DATA STRUCTURE DESCRIPTION:
+  +shares
+    +string sharename : share name
+    +bool writeback   : structure is written to file only if set to true(default), delete command changes this to false
+    +pair_t conf[]    : all keys for this share
+      +string k       : config file key
+      +string v       : config file value
+      +bool writeback : same as above
+*/
+
+//converts share name to it's index in shares vector
+//throws SMBShareNotFoundException on failure
 int sharenametoid(string sharename) {
-  for(int i=0;i<sections.size();i++) {
-    if(sections[i].section == sharename) return i;
+  for(int i=0;i<shares.size();i++) {
+    if(shares[i].sharename == sharename) return i;
   }
   throw smbsnfexception;
 }
 
-//converts key to it's index in sections->conf vector
-int paramnametoid(int sectionid, string paramname) {
-  for(int i=0;i<sections[sectionid].conf.size();i++) {
-    if(sections[sectionid].conf[i].k == paramname) return i;
+//converts key to it's index in shares->conf vector
+//throws KeyNotFoundException on failue
+int keytoid(int shareid, string key) {
+  for(int i=0;i<shares[shareid].conf.size();i++) {
+    if(shares[shareid].conf[i].k == key) return i;
   }
-  throw pnfexception;
+  throw knfexception;
 }
 
 //sets config like this
 /*
 [sharename]
-  paramname=value
+  key=value
 */
-void cmdSet(string sharename, string paramname, string value) {
+//share must exist before
+void cmdSet(string sharename, string key, string value) {
   if(debug_command_parameters)
-  cerr<<sharename<<" "<<paramname<<" "<<value<<endl;
+  cerr<<sharename<<" "<<key<<" "<<value<<endl;
   int sid=sharenametoid(sharename);
   try {
-    int pid=paramnametoid(sid,paramname);
+    int pid=keytoid(sid,key);
     //if following code executes, no exception were thrown
-    sections[sid].conf[pid].v=value;
-    sections[sid].conf[pid].writeback=true;
+    shares[sid].conf[pid].v=value;
+    shares[sid].conf[pid].writeback=true;
     if(debug_command_result)
-      cerr<<"Edited parameter "<<paramname<<" in section "<<sharename<<" with value "<<value<<endl;
+      cerr<<"Edited key "<<key<<" in share "<<sharename<<" with value "<<value<<endl;
   }
-  catch(ParamNotFoundException e) {
-    //parameter doesn't exist, so create it instead of editing
+  catch(KeyNotFoundException e) {
+    //key doesn't exist, so create it instead of editing
     pair_t p;
-    p.k=paramname;
+    p.k=key;
     p.v=value;
     p.writeback=true;
-    sections[sid].conf.push_back(p);
+    shares[sid].conf.push_back(p);
     if(debug_command_result)
-      cerr<<"Created parameter "<<paramname<<" in section "<<sharename<<" with value "<<value<<endl;
+      cerr<<"Created key "<<key<<" in share "<<sharename<<" with value "<<value<<endl;
   }
 }
-//creates section like this in config
+//creates share like this in config
 /*
-[sectionname]
+[sharename]
 */
-void cmdAdd(string sectionname) {
-  section_t st;
-  st.section=sectionname;
+void cmdAdd(string sharename) {
+  share_t st;
+  st.sharename=sharename;
   st.writeback=true;
-  sections.push_back(st);
+  shares.push_back(st);
   if(debug_command_result)
-    cerr<<"Created share "<<sectionname<<endl;
+    cerr<<"Created share "<<sharename<<endl;
 }
-//deletes section like that created above and all parameters
-void cmdDel(string sectionname) {
-  int sid=sharenametoid(sectionname);
-  sections[sid].writeback=false;
-  if(debug_command_result)
-    cerr<<"Deleted share "<<sectionname<<endl;
-}
-//deletes one parameter from section
-void cmdDel(string sectionname, string paramname) {
-  int sid=sharenametoid(sectionname);
-  int pid=paramnametoid(sid,paramname);
-  sections[sid].conf[pid].writeback=false;
-  if(debug_command_result)
-    cerr<<"Deleted parameter "<<sectionname<<"."<<paramname<<endl;
-}
-//reads value from sharename parameter
-void cmdGet(string sharename, string paramname) {
-  if(debug_command_parameters)
-  cerr<<sharename<<" "<<paramname<<endl;
+//deletes share like that created above and all keys
+void cmdDel(string sharename) {
   int sid=sharenametoid(sharename);
-  int pid=paramnametoid(sid,paramname);
-    cout<<sections[sid].conf[pid].v<<endl;
+  shares[sid].writeback=false;
+  if(debug_command_result)
+    cerr<<"Deleted share "<<sharename<<endl;
+}
+//deletes one key from share
+void cmdDel(string sharename, string key) {
+  int sid=sharenametoid(sharename);
+  int pid=keytoid(sid,key);
+  shares[sid].conf[pid].writeback=false;
+  if(debug_command_result)
+    cerr<<"Deleted key "<<sharename<<"."<<key<<endl;
+}
+//reads value from sharename key
+void cmdGet(string sharename, string key) {
+  if(debug_command_parameters)
+  cerr<<sharename<<" "<<key<<endl;
+  int sid=sharenametoid(sharename);
+  int pid=keytoid(sid,key);
+    cout<<shares[sid].conf[pid].v<<endl;
 }
 
 //does processing of arguments
 //i have no idea how the fuck this works
+
+string lastshare="";
+
+void processshare(string& s) {
+  if(s == "" && lastshare != "")
+    s=lastshare;
+  else
+    lastshare=s;
+}
+
 int process(string cmd, string param) {
+  if(cmd == "setwriteback") {
+    if(param == "true")  {
+      writeback=true;
+      if(debug_command_result)
+        cout<<"Writeback set to TRUE, at end of execution config will be saved"<<endl;
+    }
+    if(param == "false")  {
+      writeback=false;
+      if(debug_command_result)
+        cout<<"Writeback set to FALSE, at end of execution config will NOT be saved"<<endl;
+    }
+  }
   if(cmd == "set") {
-    int dp=param.find(".");
-    string sn=param.substr(0,dp); // get share name
-    string pnv=param.substr(dp+1); //get key=value
-    int ep=pnv.find("=");
-    string pn=pnv.substr(0,ep); //   get key
-    string v=pnv.substr(ep+1);  //   get value
+    string sn,pnv,pn,v;
+    split(param, ".", sn,pnv);
+    processshare(sn);
+    split(pnv,"=",pn,v);
     cmdSet(sn,pn,v);
   }
   if(cmd == "get") {
-    int dp=param.find(".");
-    string sn=param.substr(0,dp); //get share name
-    string pn=param.substr(dp+1); //get key
+    string sn,pn;
+    split(param, ".",sn,pn);
+    processshare(sn);
     cmdGet(sn,pn);
   }
   if(cmd == "add") {
     cmdAdd(param);
+    lastshare=param;
   }
   if(cmd == "del") {
-    int dp=param.find(".");
-    if(dp != -1) {
-      string sn=param.substr(0,dp);
-      string pn=param.substr(dp+1);
+    string sn,pn;
+    try {
+      split(param, ".", sn,pn);
+      processshare(sn);
       cmdDel(sn,pn);
     }
-    else {
+    catch(SubstrNotFoundException e) {
       cmdDel(param);
     }
   }
@@ -192,59 +254,79 @@ int process(string cmd, string param) {
 }
 //re-generates new samba config file
 void regen() {
-  //lets make a backup, we'll probably need it because chances that something goes
-  //terribly wrong, are high
-  if(rename("/etc/samba/smb.conf","/etc/samba/smb.conf.bak")) {
-    cerr<<"rename( /etc/samba/smb.conf, /etc/samba/smb.conf.bak) failed: "<<strerror(errno)<<endl;
+  if(!writeback) {
+    cerr<<"WARNING: writeback set to false, refusing to write!"<<endl;
+    return;
+  }
+  string smbconfbak=smbconf+".bak";
+
+  if(rename(smbconf.c_str(),smbconfbak.c_str())) {
+    cerr<<"rename( "<<smbconf<<", "<<smbconfbak<<") failed: "<<strerror(errno)<<endl;
     return;
   }
   ofstream wcf;
-  wcf.open("/etc/samba/smb.conf");
+  wcf.open(smbconf.c_str());
   if(!wcf.is_open()) {
-    cerr<<"Failed to open /etc/samba/smb.conf to write!"<<endl;
+    cerr<<"Failed to open "<<smbconf<<" to write!"<<endl;
     return;
   }
-  //write everything
-  //looks complicated, but it's simple and complicated at the same time
-
-  //i'll try to comment this now
-
-  //iterate through all sections in our config file
-  for(int i=0;i<sections.size();i++) {
+  //iterate through all shares in our config file
+  for(int i=0;i<shares.size();i++) {
     //if writeback is set to false, we have to skip it
-    //that's how deleting sections work
-    if(sections[i].writeback) {
-      //write section header to config
-      wcf<<"["<<sections[i].section<<"]"<<endl;
-      //iterate through all parameters for this section
-      for(int j=0;j<sections[i].conf.size();j++) {
+    //that's how deleting shares work
+    if(shares[i].writeback) {
+      //write share header to config
+      wcf<<"["<<shares[i].sharename<<"]"<<endl;
+      //iterate through all keys for this share
+      for(int j=0;j<shares[i].conf.size();j++) {
         //if writeback is set to false, skip
-        if(sections[i].conf[j].writeback)
-          //write param=value pair to file
-          wcf<<"  "<<sections[i].conf[j].k<<"="<<sections[i].conf[j].v<<endl;
+        if(shares[i].conf[j].writeback)
+          //write key=value pair to file
+          wcf<<"  "<<shares[i].conf[j].k<<"="<<shares[i].conf[j].v<<endl;
       }
     }
   }
   //finally, close file
   wcf.close();
 }
-int main(int args, char** argv) {
-  if(args < 3) {
-    cerr<<"WARINIG: THIS PROGRAM IS NOT MEANT FOR PRODUCTION USAGE!"<<endl;
-    cerr<<"IT MAY COMPLETELY FUCK YOUR SAMBA CONFIG!"<<endl;
-    cerr<<"I MADE IT BECAUSE I NEEDED TO HAVE A WAY TO SCRIPT CREATING SMB SHARES"<<endl;
-    cerr<<"FOR MY EXAM! YOU SHOULD NOT BE USING IT AT ALL!"<<endl;
+int args;
+char** argv;
+//gets value from parameter in format arg=val
+string getval(string arg, string def="") {
+  for(int i=0;i<args;i++) {
+    string ca=argv[i];
+    int pos=ca.find("=");
+    if(pos > 0) {
+      if(ca.substr(0, pos) == arg) {
+        return ca.substr(pos+1);
+      }
+    }
+  }
+  return def;
+}
+
+int main(int _args, char** _argv)
+{
+  args=_args;
+  argv=_argv;
+  smbconf=getval("conf","/etc/samba/smb.conf");
+  string scriptfile=getval("script","");
+
+
+
+  if( !scriptfile.size() && ( (smbconf == "/etc/samba/smb.conf" && args < 3) || (smbconf != "/etc/samba/smb.conf" && args < 4) )) {
+    cerr<<"WARINIG: THIS PROGRAM IS NOT MEANT FOR PRODUCTION USAGE! (YET)"<<endl;
     cerr<<endl;
-    cerr<<"PROGRAM DOESN'T GIVE A FUCK ABOUT YOU'R COMMENTS! (and will delete them)"<<endl;
+    cerr<<"Usage: scedit [script=..] [conf=..] <command> <command parameter>"<<endl;
+    cerr<<"scedit set sharename.key=value       - set key in share"<<endl;
+    cerr<<"       get sharename.key             - get key in share"<<endl;
+    cerr<<"       add sharename                 - create share"<<endl;
+    cerr<<"       del sharename                 - delete share"<<endl;
+    cerr<<"       del sharename.key             - delete key from share definition"<<endl;
     cerr<<endl;
-    cerr<<"Usage: scedit set sharename.paramname=value - set parameter in share"<<endl;
-    cerr<<"              get sharename.paramname       - get parameter in share (*)"<<endl;
-    cerr<<"              add sharename                 - create share"<<endl;
-    cerr<<"              del sharename                 - delete share"<<endl;
-    cerr<<"              del sharename.paramname       - delete parameter from share"<<endl;
-    cerr<<"              f   filename                  - execute commands from file filename"<<endl;
-    cerr<<endl;
-    cerr<<"(*) using AWK, GREP and SED in some combination probably would be and faster for scripting"<<endl;
+    cerr<<"Passing options:"<<endl;
+    cerr<<"scedit script=filename.txt - executes command from filename.txt, commands from command line ignored"<<endl;
+    cerr<<"scedit conf=/my/path/to/smb.conf - sets path to smb.conf file, can be combined with other commands"<<endl;
     cerr<<endl;
     cerr<<"scedit Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
     cerr<<"This program comes with ABSOLUTELY NO WARRANTY."<<endl;
@@ -252,63 +334,58 @@ int main(int args, char** argv) {
     cerr<<"under certain conditions; Read attached license file for details."<<endl;
   }
   else {
-    //this message is just for fun (my teacher will see it when he runs my script)
-    //greetings, Mr. Grzegorz
-    cerr<<"Starting SCEDIT Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
-    string c(argv[1]);
-    string v(argv[2]);
+    string c,v;
+    if(!scriptfile.size()) {
+      c=string(argv[args-2]);
+      v=string(argv[args-1]);
+    }
     ifstream smbconffile;
-    smbconffile.open("/etc/samba/smb.conf");
+    smbconffile.open(smbconf.c_str());
     if(!smbconffile.is_open()) {
-      cerr<<"ERROR: Failed to open smb.conf"<<endl;
+      cerr<<"ERROR: Failed to open "<<smbconf<<endl;
       return 1;
     }
-    int currentsection=-1;
+    if(debug_input)
+      cerr<<"INPUT: Opened samba config file "<<smbconf<<endl;
+    int currentshare=-1;
     //this parses config file
-    //somehow works, but if your config sections look like this
-    //[ name ]
-    //not like this
-    //[name]
-    //you'r in trouble. Mine doesn't so it works for me
     while(smbconffile.good()) {
       string s;
       getline(smbconffile,s);
       char c=firstNonWhitespaceCharacter(s);
       if(c == '#' || c == ';') continue; //skip comments
-      if(c == '[') //beginning of section
+      if(c == '[') //beginning of share
       {
-        currentsection++;
-        section_t st;
-        s=s.substr(1,s.length()-2);
+        currentshare++;
+        share_t st;
+        s=stripWhitespaces(s); //before anything else
+        s=s.substr(1,s.length()-2); //remove '[' and ']' from string
         if(debug_input)
-          cerr<<"INPUT: using section "<<s<<endl;
-        st.section=s;
+          cerr<<"INPUT: using share "<<s<<endl;
+        st.sharename=s;
         st.writeback=true;
-        sections.push_back(st);
+        shares.push_back(st);
       }
       else
       {
-        int ep=s.find("=");
-        if(ep != -1) {
-          string c=s.substr(0,ep);
-          string v=s.substr(ep+1);
-          //remove leading and trailing whitespaces
-          //copied from stack overflow, i have no idea how that works
-          //increases compilation time by 3 seconds, maybe should be moved to another statically-linked file?
-          //WARINING: If you have double-space in path, or any parameter, then you'r fucked
-          c=std::regex_replace(c, std::regex("^ +| +$|( ) +"), "$1");
-          v=std::regex_replace(v, std::regex("^ +| +$|( ) +"), "$1");
+        try {
           pair_t p;
-          p.k=c;
-          p.v=v;
           p.writeback=true;
-          sections[currentsection].conf.push_back(p);
+          split(s,"=",p.k,p.v);
+          //remove leading and trailing whitespaces
+          p.k=stripLeadingWhitespaces(p.k);
+          p.k=stripTailingWhitespaces(p.k);
+          p.v=stripLeadingWhitespaces(p.v);
+          p.v=stripTailingWhitespaces(p.v);
+
+          shares[currentshare].conf.push_back(p);
           if(debug_input)
-            cerr<<"INPUT: "<<sections[currentsection].section<<"."<<c<<"="<<v<<endl;
+            cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<p.k<<"="<<p.v<<endl;
         }
+        catch(SubstrNotFoundException e) {} //ignore that exception, we know that it may occur
       }
     }
-    if(c != "f") {
+    if(!scriptfile.size()) {
       process(c,v);
       //only get command doesn't require to regenerate file
       if(c != "get")
@@ -316,7 +393,7 @@ int main(int args, char** argv) {
     }
     else {
       ifstream commands;
-      commands.open(v.c_str());
+      commands.open(scriptfile.c_str());
       if(!commands.is_open()) {
         cerr<<"Failed to open file "<<v<<endl;
         return 1;
@@ -325,13 +402,11 @@ int main(int args, char** argv) {
       while(commands.good()) {
         string s;
         getline(commands, s);
-        if(s.length() == 0 || s[0] == '#')
+        if(s.length() == 0 || firstNonWhitespaceCharacter(s) == '#')
           continue;
-        //first space seperates command from data
-        int space=s.find(" ");
-        //split skipping that space
-        c=s.substr(0,space);
-        v=s.substr(space+1);
+        split(s, " ", c, v);
+        if(debug_script) //endl at beginning to improve readability
+          cerr<<endl<<"SCRIPT> "<<c<<" "<<v<<endl;
         process(c,v);
       }
       //we'r assuming that there was set/add/del command used and regenerating file
@@ -340,4 +415,3 @@ int main(int args, char** argv) {
   }
 
 }
-//How much will it take until this program makes it's way to /r/programminghorror?

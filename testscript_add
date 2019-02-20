@@ -1,9 +1,0 @@
-add testshare
-set testshare.path=/tmp/testshare
-set testshare.writeable=no
-set testshare.valid users=root
-set testshare.browseable=yes
-set testshare.guest ok=no
-set testshare.public=no
-set testshare.create mask=644
-set testshare.directory mask=755

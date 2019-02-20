@@ -1,0 +1,31 @@
+#disable writing to real file, since this is test script
+setwriteback false
+
+#create new share, program will remember it's name and use it for
+#next commands
+add testshare
+
+#we don't have to specify sharename here, because
+#program will use default one
+
+set .path=/tmp/testshare
+set .writeable=no
+set .valid users=root
+set .browseable=yes
+set .guest ok=no
+set .public=no
+set .create mask=644
+set .directory mask=755
+
+#add parameters to [global]
+#in first command, specify share name (global)
+#for program to remember it
+
+set global.unix password sync=false
+
+#in next one we don't have to, it's already in memory
+
+set .passwd program=/bin/false
+
+#i can't remember if these are valid samba parameters, this is just for test
+#and program will not test values before writing
