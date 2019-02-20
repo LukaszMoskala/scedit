@@ -24,22 +24,9 @@ using namespace std;
 
 #include "exceptions.hpp"
 
-/*
-  I'm very sorry for this program. Comments are poor, and naming isn't consistent
-  But i'm not going to use it in production enviromment and neither should you!
-  I need it for ONE script for ONE exam in school, and my teacher will probably
-  never look up source code of this program, so I don't give a fuck about that
-
-  If you'r in situation like me (that is, you have exam that requires you to
-  write script to set and remove network shares), then you might want to use
-  this program. You should not anyway, and in production enviromment editing
-  samba config file by hand is much better idea
-*/
-
 //verbosity control
 //there is no way of changing this at run-time, so... yeah...
-//but who cares, i'll forget about this program in a week after exam and
-//probably never use it again
+//TODO: verbosity control using command line options
 bool debug_input=true;
 bool debug_command_parameters=false;
 bool debug_command_result=true;
@@ -194,11 +181,13 @@ int process(string cmd, string param) {
 void regen() {
   //lets make a backup, we'll probably need it because chances that something goes
   //terribly wrong, are high
+  //TODO: pass file from command line
   if(rename("/etc/samba/smb.conf","/etc/samba/smb.conf.bak")) {
     cerr<<"rename( /etc/samba/smb.conf, /etc/samba/smb.conf.bak) failed: "<<strerror(errno)<<endl;
     return;
   }
   ofstream wcf;
+  //TODO: pass file from command line
   wcf.open("/etc/samba/smb.conf");
   if(!wcf.is_open()) {
     cerr<<"Failed to open /etc/samba/smb.conf to write!"<<endl;
@@ -230,12 +219,8 @@ void regen() {
 }
 int main(int args, char** argv) {
   if(args < 3) {
-    cerr<<"WARINIG: THIS PROGRAM IS NOT MEANT FOR PRODUCTION USAGE!"<<endl;
-    cerr<<"IT MAY COMPLETELY FUCK YOUR SAMBA CONFIG!"<<endl;
-    cerr<<"I MADE IT BECAUSE I NEEDED TO HAVE A WAY TO SCRIPT CREATING SMB SHARES"<<endl;
-    cerr<<"FOR MY EXAM! YOU SHOULD NOT BE USING IT AT ALL!"<<endl;
-    cerr<<endl;
-    cerr<<"PROGRAM DOESN'T GIVE A FUCK ABOUT YOU'R COMMENTS! (and will delete them)"<<endl;
+    //todo: use gnu DD-like command line arguments
+    cerr<<"WARINIG: THIS PROGRAM IS NOT MEANT FOR PRODUCTION USAGE! (YET)"<<endl;
     cerr<<endl;
     cerr<<"Usage: scedit set sharename.paramname=value - set parameter in share"<<endl;
     cerr<<"              get sharename.paramname       - get parameter in share (*)"<<endl;
@@ -252,12 +237,10 @@ int main(int args, char** argv) {
     cerr<<"under certain conditions; Read attached license file for details."<<endl;
   }
   else {
-    //this message is just for fun (my teacher will see it when he runs my script)
-    //greetings, Mr. Grzegorz
-    cerr<<"Starting SCEDIT Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
     string c(argv[1]);
     string v(argv[2]);
     ifstream smbconffile;
+    //TODO: command line option to set config file
     smbconffile.open("/etc/samba/smb.conf");
     if(!smbconffile.is_open()) {
       cerr<<"ERROR: Failed to open smb.conf"<<endl;
@@ -270,6 +253,8 @@ int main(int args, char** argv) {
     //not like this
     //[name]
     //you'r in trouble. Mine doesn't so it works for me
+
+    //TODO: remove whitespaces from section names
     while(smbconffile.good()) {
       string s;
       getline(smbconffile,s);
@@ -296,6 +281,8 @@ int main(int args, char** argv) {
           //copied from stack overflow, i have no idea how that works
           //increases compilation time by 3 seconds, maybe should be moved to another statically-linked file?
           //WARINING: If you have double-space in path, or any parameter, then you'r fucked
+
+          //TODO: implement without using regex
           c=std::regex_replace(c, std::regex("^ +| +$|( ) +"), "$1");
           v=std::regex_replace(v, std::regex("^ +| +$|( ) +"), "$1");
           pair_t p;
@@ -340,4 +327,3 @@ int main(int args, char** argv) {
   }
 
 }
-//How much will it take until this program makes it's way to /r/programminghorror?
