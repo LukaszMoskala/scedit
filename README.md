@@ -18,7 +18,14 @@ Setting parameter containing spaces: `scedit set 'testshare.valid users=LukaszMo
 `scedit get testshare.path` prints value of `testshare.path` to STDOUT.
 Works in scripts, but probably isn't usefull
 
-`scedit f testscript` executes commands from file `testscript`
+`scedit script=testscript` executes commands from file `testscript`
+# smb.conf in non-default location
+
+pass `conf=/my/path/to/smb.conf` as first argument, like that:
+
+`scedit conf=/mysmb.conf add testshare` or
+
+`scedit conf=/mysmb.conf script=testscript`
 
 # Modifying the [global] section
 Just edit parameters as any share parameters:
