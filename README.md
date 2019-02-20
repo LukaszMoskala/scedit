@@ -18,6 +18,10 @@ Setting parameter containing spaces: `scedit set 'testshare.valid users=LukaszMo
 `scedit get testshare.path` prints value of `testshare.path` to STDOUT.
 Works in scripts, but probably isn't usefull
 
+`scedit get shares` lists all shares
+
+`scedit get sharename` lists all keys in share
+
 `scedit script=testscript` executes commands from file `testscript`
 # smb.conf in non-default location
 
