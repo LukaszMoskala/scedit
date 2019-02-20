@@ -106,11 +106,11 @@ int sharenametoid(string sharename) {
 
 //converts key to it's index in shares->conf vector
 //throws ParamNotFoundException on failue
-int paramnametoid(int shareid, string key) {
+int keytoid(int shareid, string key) {
   for(int i=0;i<shares[shareid].conf.size();i++) {
     if(shares[shareid].conf[i].k == key) return i;
   }
-  throw pnfexception;
+  throw knfexception;
 }
 
 //sets config like this
@@ -124,14 +124,14 @@ void cmdSet(string sharename, string key, string value) {
   cerr<<sharename<<" "<<key<<" "<<value<<endl;
   int sid=sharenametoid(sharename);
   try {
-    int pid=paramnametoid(sid,key);
+    int pid=keytoid(sid,key);
     //if following code executes, no exception were thrown
     shares[sid].conf[pid].v=value;
     shares[sid].conf[pid].writeback=true;
     if(debug_command_result)
       cerr<<"Edited parameter "<<key<<" in section "<<sharename<<" with value "<<value<<endl;
   }
-  catch(ParamNotFoundException e) {
+  catch(KeyNotFoundException e) {
     //parameter doesn't exist, so create it instead of editing
     pair_t p;
     p.k=key;
@@ -164,7 +164,7 @@ void cmdDel(string sharename) {
 //deletes one parameter from section
 void cmdDel(string sharename, string paramname) {
   int sid=sharenametoid(sharename);
-  int pid=paramnametoid(sid,paramname);
+  int pid=keytoid(sid,paramname);
   shares[sid].conf[pid].writeback=false;
   if(debug_command_result)
     cerr<<"Deleted parameter "<<sharename<<"."<<paramname<<endl;
@@ -174,7 +174,7 @@ void cmdGet(string sharename, string paramname) {
   if(debug_command_parameters)
   cerr<<sharename<<" "<<paramname<<endl;
   int sid=sharenametoid(sharename);
-  int pid=paramnametoid(sid,paramname);
+  int pid=keytoid(sid,paramname);
     cout<<shares[sid].conf[pid].v<<endl;
 }
 

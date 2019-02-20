@@ -10,10 +10,10 @@ class SMBShareNotFoundException: public exception
   }
 } smbsnfexception;
 
-class ParamNotFoundException: public exception
+class KeyNotFoundException: public exception
 {
   virtual const char* what() const throw()
   {
-    return "Parameter Not Found Exception";
+    return "Key Not Found Exception";
   }
-} pnfexception;
+} knfexception;
