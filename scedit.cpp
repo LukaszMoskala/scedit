@@ -36,6 +36,9 @@ bool debug_input=true;
 bool debug_command_parameters=false;
 bool debug_command_result=true;
 
+//config file location
+//TODO: allow overriding using command line argument
+string smbconf="/etc/samba/smb.conf";
 
 //returns true if c is whitespace character
 bool isWhistespace(char c) {
@@ -214,16 +217,14 @@ int process(string cmd, string param) {
 }
 //re-generates new samba config file
 void regen() {
-  //lets make a backup, we'll probably need it because chances that something goes
-  //terribly wrong, are high
-  //TODO: pass file from command line
-  if(rename("/etc/samba/smb.conf","/etc/samba/smb.conf.bak")) {
-    cerr<<"rename( /etc/samba/smb.conf, /etc/samba/smb.conf.bak) failed: "<<strerror(errno)<<endl;
+  string smbconfbak=smbconf+".bak";
+
+  if(rename(smbconf.c_str(),smbconfbak.c_str())) {
+    cerr<<"rename( "<<smbconf<<", "<<smbconfbak<<") failed: "<<strerror(errno)<<endl;
     return;
   }
   ofstream wcf;
-  //TODO: pass file from command line
-  wcf.open("/etc/samba/smb.conf");
+  wcf.open(smbconf.c_str());
   if(!wcf.is_open()) {
     cerr<<"Failed to open /etc/samba/smb.conf to write!"<<endl;
     return;
@@ -275,12 +276,13 @@ int main(int args, char** argv) {
     string c(argv[1]);
     string v(argv[2]);
     ifstream smbconffile;
-    //TODO: command line option to set config file
-    smbconffile.open("/etc/samba/smb.conf");
+    smbconffile.open(smbconf.c_str());
     if(!smbconffile.is_open()) {
       cerr<<"ERROR: Failed to open smb.conf"<<endl;
       return 1;
     }
+    if(debug_input)
+      cerr<<"INPUT: Opened samba config file "<<smbconf<<endl;
     int currentshare=-1;
     //this parses config file
     while(smbconffile.good()) {
