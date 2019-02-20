@@ -198,7 +198,6 @@ void cmdGet(string sharename, string paramname) {
 string lastshare="";
 int process(string cmd, string param) {
   if(cmd == "set") {
-    int dp=param.find(".");
     string sn,pnv,pn,v;
     split(param, ".", sn,pnv);
     if(sn == "" && lastshare != "")
@@ -328,11 +327,9 @@ int main(int args, char** argv) {
       {
         //we'r not using split here, because here a lot exceptions may be thrown
         //and that's possible performance problem
-        int ep=s.find("=");
-        if(ep != -1) {
-          string c=s.substr(0,ep);
-          string v=s.substr(ep+1);
-
+        try {
+          string c,v;
+          split(s,"=",c,v);
           //remove leading and trailing whitespaces
           c=stripLeadingWhitespaces(c);
           c=stripTailingWhitespaces(c);
@@ -346,6 +343,11 @@ int main(int args, char** argv) {
           shares[currentshare].conf.push_back(p);
           if(debug_input)
             cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<c<<"="<<v<<endl;
+        }
+        catch(SubstrNotFoundException e) {
+          //not a valid line, ignore exception and continue
+          //program execution because it may happen
+          //for many reasons, eg empty line in file
         }
       }
     }
