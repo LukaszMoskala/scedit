@@ -214,12 +214,12 @@ int process(string cmd, string param) {
     if(param == "true")  {
       writeback=true;
       if(debug_command_result)
-        cout<<"Writeback set to TRUE, at end of execution config will be saved"<<endl;
+        cerr<<"Writeback set to TRUE, at end of execution config will be saved"<<endl;
     }
     if(param == "false")  {
       writeback=false;
       if(debug_command_result)
-        cout<<"Writeback set to FALSE, at end of execution config will NOT be saved"<<endl;
+        cerr<<"Writeback set to FALSE, at end of execution config will NOT be saved"<<endl;
     }
   }
 
