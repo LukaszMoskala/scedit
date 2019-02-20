@@ -226,7 +226,7 @@ void regen() {
   ofstream wcf;
   wcf.open(smbconf.c_str());
   if(!wcf.is_open()) {
-    cerr<<"Failed to open /etc/samba/smb.conf to write!"<<endl;
+    cerr<<"Failed to open "<<smbconf<<" to write!"<<endl;
     return;
   }
   //write everything
@@ -278,7 +278,7 @@ int main(int args, char** argv) {
     ifstream smbconffile;
     smbconffile.open(smbconf.c_str());
     if(!smbconffile.is_open()) {
-      cerr<<"ERROR: Failed to open smb.conf"<<endl;
+      cerr<<"ERROR: Failed to open "<<smbconf<<endl;
       return 1;
     }
     if(debug_input)
