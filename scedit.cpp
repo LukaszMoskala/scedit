@@ -17,8 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <fstream>
 #include <vector>
 #include <iostream>
-#include <regex>
-
+#include <cstring> //strerror
 using namespace std;
 
 
@@ -44,6 +43,23 @@ char firstNonWhitespaceCharacter(string s) {
     if(!isWhistespace(s[i])) return s[i];
   }
   return 0;
+}
+string stripWhitespaces(string s) {
+  string ret="";
+  for(int i=0;i<s.size();i++)
+    if(!isWhistespace(s[i]))
+      ret+=s[i];
+  return ret;
+}
+string stripLeadingWhitespaces(string s) {
+  int i=-1;
+  while(isWhistespace(s[++i]));
+  return s.substr(i);
+}
+string stripTailingWhitespaces(string s) {
+  int i=s.length();
+  while(isWhistespace(s[--i]));
+  return s.substr(0,i+1);
 }
 //pair of key=value
 //if writeback is set to false, this entry will be skipped when
@@ -248,13 +264,6 @@ int main(int args, char** argv) {
     }
     int currentsection=-1;
     //this parses config file
-    //somehow works, but if your config sections look like this
-    //[ name ]
-    //not like this
-    //[name]
-    //you'r in trouble. Mine doesn't so it works for me
-
-    //TODO: remove whitespaces from section names
     while(smbconffile.good()) {
       string s;
       getline(smbconffile,s);
@@ -264,6 +273,7 @@ int main(int args, char** argv) {
       {
         currentsection++;
         section_t st;
+        s=stripWhitespaces(s); //before anything else
         s=s.substr(1,s.length()-2);
         if(debug_input)
           cerr<<"INPUT: using section "<<s<<endl;
@@ -283,8 +293,12 @@ int main(int args, char** argv) {
           //WARINING: If you have double-space in path, or any parameter, then you'r fucked
 
           //TODO: implement without using regex
-          c=std::regex_replace(c, std::regex("^ +| +$|( ) +"), "$1");
-          v=std::regex_replace(v, std::regex("^ +| +$|( ) +"), "$1");
+          c=stripLeadingWhitespaces(c);
+          c=stripTailingWhitespaces(c);
+
+          v=stripLeadingWhitespaces(v);
+          v=stripTailingWhitespaces(v);
+
           pair_t p;
           p.k=c;
           p.v=v;
