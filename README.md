@@ -9,6 +9,8 @@ This software is NOT meant for production usage! (YET)
 
 `scedit set testshare.path=/my/share/path` sets (or creates if not exists) property `path` for `testshare`
 
+Setting parameter containing spaces: `scedit set 'testshare.valid users=LukaszMoskala'`
+
 `scedit del testshare.path` deletes `path` property from `testshare`
 
 `scedit del testshare` deletes entire `testshare` share
