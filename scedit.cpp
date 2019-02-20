@@ -350,18 +350,15 @@ int main(int args, char** argv) {
         //we'r not using split here, because here a lot exceptions may be thrown
         //and that's possible performance problem
         try {
-          string c,v;
-          split(s,"=",c,v);
-          //remove leading and trailing whitespaces
-          c=stripLeadingWhitespaces(c);
-          c=stripTailingWhitespaces(c);
-          v=stripLeadingWhitespaces(v);
-          v=stripTailingWhitespaces(v);
-
           pair_t p;
-          p.k=c;
-          p.v=v;
           p.writeback=true;
+          split(s,"=",p.k,p.v);
+          //remove leading and trailing whitespaces
+          p.k=stripLeadingWhitespaces(p.k);
+          p.k=stripTailingWhitespaces(p.k);
+          p.v=stripLeadingWhitespaces(p.v);
+          p.v=stripTailingWhitespaces(p.v);
+          
           shares[currentshare].conf.push_back(p);
           if(debug_input)
             cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<c<<"="<<v<<endl;
