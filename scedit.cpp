@@ -35,6 +35,7 @@ using namespace std;
 bool debug_input=true;
 bool debug_command_parameters=false;
 bool debug_command_result=true;
+bool debug_script=true;
 
 //config file location
 //TODO: allow overriding using command line argument
@@ -80,6 +81,11 @@ void split(string src, string tofind, string& out1, string& out2) {
   out1=src.substr(0,pos);
   out2=src.substr(pos+len);
 }
+
+bool writeback=true; //if set to false, program will NOT try to write to smb.conf
+//usefull for testing new functions, as it will not cause any harm to system
+//since changes are made in ram only, and written to disk at the end
+
 
 //pair of key=value
 //if writeback is set to false, this entry will be skipped when
@@ -197,6 +203,18 @@ void cmdGet(string sharename, string paramname) {
 
 string lastshare="";
 int process(string cmd, string param) {
+  if(cmd == "setwriteback") {
+    if(param == "true")  {
+      writeback=true;
+      if(debug_command_result)
+        cout<<"Writeback set to TRUE, at end of execution config will be saved"<<endl;
+    }
+    if(param == "false")  {
+      writeback=false;
+      if(debug_command_result)
+        cout<<"Writeback set to FALSE, at end of execution config will NOT be saved"<<endl;
+    }
+  }
   if(cmd == "set") {
     string sn,pnv,pn,v;
     split(param, ".", sn,pnv);
@@ -238,6 +256,10 @@ int process(string cmd, string param) {
 }
 //re-generates new samba config file
 void regen() {
+  if(!writeback) {
+    cerr<<"WARNING: writeback set to false, refusing to write!"<<endl;
+    return;
+  }
   string smbconfbak=smbconf+".bak";
 
   if(rename(smbconf.c_str(),smbconfbak.c_str())) {
@@ -371,6 +393,8 @@ int main(int args, char** argv) {
         if(s.length() == 0 || s[0] == '#')
           continue;
         split(s, " ", c, v);
+        if(debug_script) //endl at beginning to improve readability
+          cerr<<endl<<"SCRIPT> "<<c<<" "<<v<<endl;
         process(c,v);
       }
       //we'r assuming that there was set/add/del command used and regenerating file
