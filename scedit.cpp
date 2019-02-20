@@ -37,9 +37,8 @@ bool debug_command_parameters=false;
 bool debug_command_result=true;
 bool debug_script=true;
 
-//config file location
-//TODO: allow overriding using command line argument
-string smbconf="/etc/samba/smb.conf";
+//config file location, loaded from parameter or used default at beginning of main()
+string smbconf;
 
 //returns true if c is whitespace character
 bool isWhistespace(char c) {
@@ -290,17 +289,44 @@ void regen() {
   //finally, close file
   wcf.close();
 }
-int main(int args, char** argv) {
-  if(args < 3) {
-    //todo: use gnu DD-like command line arguments
+int args;
+char** argv;
+//gets value from parameter in format arg=val
+string getval(string arg, string def="") {
+  for(int i=0;i<args;i++) {
+    string ca=argv[i];
+    int pos=ca.find("=");
+    if(pos > 0) {
+      if(ca.substr(0, pos) == arg) {
+        return ca.substr(pos+1);
+      }
+    }
+  }
+  return def;
+}
+
+int main(int _args, char** _argv)
+{
+  args=_args;
+  argv=_argv;
+  smbconf=getval("conf","/etc/samba/smb.conf");
+  string scriptfile=getval("script","");
+
+
+
+  if( !scriptfile.size() && ( (smbconf == "/etc/samba/smb.conf" && args < 3) || (smbconf != "/etc/samba/smb.conf" && args < 4) )) {
     cerr<<"WARINIG: THIS PROGRAM IS NOT MEANT FOR PRODUCTION USAGE! (YET)"<<endl;
     cerr<<endl;
-    cerr<<"Usage: scedit set sharename.key=value       - set key in share"<<endl;
-    cerr<<"              get sharename.key             - get key in share"<<endl;
-    cerr<<"              add sharename                 - create share"<<endl;
-    cerr<<"              del sharename                 - delete share"<<endl;
-    cerr<<"              del sharename.key             - delete key from share definition"<<endl;
-    cerr<<"              f   filename                  - execute commands from file filename (script mode)"<<endl;
+    cerr<<"Usage: scedit [script=..] [conf=..] <command> <command parameter>"<<endl;
+    cerr<<"scedit set sharename.key=value       - set key in share"<<endl;
+    cerr<<"       get sharename.key             - get key in share"<<endl;
+    cerr<<"       add sharename                 - create share"<<endl;
+    cerr<<"       del sharename                 - delete share"<<endl;
+    cerr<<"       del sharename.key             - delete key from share definition"<<endl;
+    cerr<<endl;
+    cerr<<"Passing options:"<<endl;
+    cerr<<"scedit script=filename.txt - executes command from filename.txt, commands from command line ignored"<<endl;
+    cerr<<"scedit conf=/my/path/to/smb.conf - sets path to smb.conf file, can be combined with other commands"<<endl;
     cerr<<endl;
     cerr<<"scedit Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
     cerr<<"This program comes with ABSOLUTELY NO WARRANTY."<<endl;
@@ -308,8 +334,11 @@ int main(int args, char** argv) {
     cerr<<"under certain conditions; Read attached license file for details."<<endl;
   }
   else {
-    string c(argv[1]);
-    string v(argv[2]);
+    string c,v;
+    if(!scriptfile.size()) {
+      c=string(argv[args-2]);
+      v=string(argv[args-1]);
+    }
     ifstream smbconffile;
     smbconffile.open(smbconf.c_str());
     if(!smbconffile.is_open()) {
@@ -362,7 +391,7 @@ int main(int args, char** argv) {
         }
       }
     }
-    if(c != "f") {
+    if(!scriptfile.size()) {
       process(c,v);
       //only get command doesn't require to regenerate file
       if(c != "get")
@@ -370,7 +399,7 @@ int main(int args, char** argv) {
     }
     else {
       ifstream commands;
-      commands.open(v.c_str());
+      commands.open(scriptfile.c_str());
       if(!commands.is_open()) {
         cerr<<"Failed to open file "<<v<<endl;
         return 1;
