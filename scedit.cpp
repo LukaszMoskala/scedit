@@ -79,6 +79,16 @@ struct section_t {
 //we have to store this somewhere, don't we?
 vector <section_t> sections;
 
+/* DATA STRUCTURE DESCRIPTION:
+  +sections
+    +string section   : section name
+    +bool writeback   : structure is written to file only if set to true(default), delete command changes this to false
+    +pair_t conf[]    : all parameters for this section
+      +string k       : config file key
+      +string v       : config file value
+      +bool writeback : same as above
+*/
+
 //converts share name to it's index in sections vector
 int sharenametoid(string sharename) {
   for(int i=0;i<sections.size();i++) {
