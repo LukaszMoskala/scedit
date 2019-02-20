@@ -13,7 +13,17 @@ This software is NOT meant for production usage! (YET)
 
 `scedit del testshare` deletes entire `testshare` share
 
+`scedit get testshare.path` prints value of `testshare.path` to STDOUT.
+Works in scripts, but probably isn't usefull
+
 `scedit f testscript` executes commands from file `testscript`
+
+# Modifying the [global] section
+Just edit parameters as any share parameters:
+
+`scedit set global.workgroup=myNewWorkgroup`
+
+`scedit get global.workgroup`
 
 # Script syntax
 Syntax in scripts is identical as syntax on command line. Example script:
