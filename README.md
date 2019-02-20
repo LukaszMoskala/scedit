@@ -32,7 +32,8 @@ add testshare
 set testshare.path=/my/share/path
 set .create mask=0644
 ```
-Program will guess share name if not specified (that is, it'll use whatever share was used before)
+Program will guess share name if not specified (that is, it'll use whatever share was used before).
+It's not recommended since it's easy to forget about the dot before parameter name, causing unexpected behaviour
 # Working principle
 Entire `smb.conf` is loaded into memory, then it's processed according to command line options or script.
 Before finishing, program saves config as `smb.conf.bak` and writes contents of memory to `smb.conf`
