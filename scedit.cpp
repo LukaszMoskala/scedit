@@ -222,6 +222,7 @@ int process(string cmd, string param) {
         cout<<"Writeback set to FALSE, at end of execution config will NOT be saved"<<endl;
     }
   }
+
   if(cmd == "set") {
     string sn,pnv,pn,v;
     split(param, ".", sn,pnv);
@@ -230,10 +231,29 @@ int process(string cmd, string param) {
     cmdSet(sn,pn,v);
   }
   if(cmd == "get") {
-    string sn,pn;
-    split(param, ".",sn,pn);
-    processshare(sn);
-    cmdGet(sn,pn);
+    try {
+      string sn,pn;
+      split(param, ".",sn,pn);
+      processshare(sn);
+      cmdGet(sn,pn);
+    }
+    catch(SubstrNotFoundException) {
+      if(param == "shares") {
+        cout<<"Shares:"<<endl;
+        for(int i=0;i<shares.size();i++) {
+          if(shares[i].writeback)
+            cerr<<" - "<<shares[i].sharename<<endl;
+        }
+      }
+      else {
+        int id=sharenametoid(param);
+        cerr<<"Keys in "<<param<<":"<<endl;
+        for(int i=0;i<shares[id].conf.size();i++) {
+          if(shares[id].conf[i].writeback)
+            cerr<<" - "<<shares[id].conf[i].k<<" = "<<shares[id].conf[i].v<<endl;
+        }
+      }
+    }
   }
   if(cmd == "add") {
     cmdAdd(param);
@@ -324,6 +344,7 @@ int main(int _args, char** _argv)
     cerr<<endl;
     cerr<<"Passing options:"<<endl;
     cerr<<"scedit script=filename.txt - executes command from filename.txt, commands from command line ignored"<<endl;
+    cerr<<"scedit script=-            - interactive mode"<<endl;
     cerr<<"scedit conf=/my/path/to/smb.conf - sets path to smb.conf file, can be combined with other commands"<<endl;
     cerr<<endl;
     cerr<<"scedit Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
@@ -386,25 +407,48 @@ int main(int _args, char** _argv)
     if(!scriptfile.size()) {
       process(c,v);
       //only get command doesn't require to regenerate file
-      if(c != "get")
+      if(c != "get" && c != "show")
         regen();
     }
     else {
+      bool useStdin=(scriptfile == "-");
+
       ifstream commands;
-      commands.open(scriptfile.c_str());
-      if(!commands.is_open()) {
-        cerr<<"Failed to open file "<<v<<endl;
-        return 1;
+      if(useStdin) {
+        cerr<<endl;
+        cerr<<"+===================================================================+"<<endl;
+        cerr<<"| scedit Copyright (C) 2019 Łukasz Konrad Moskała                   |"<<endl;
+        cerr<<"| This program comes with ABSOLUTELY NO WARRANTY.                   |"<<endl;
+        cerr<<"| This is free software, and you are welcome to redistribute it     |"<<endl;
+        cerr<<"| under certain conditions; Read attached license file for details. |"<<endl;
+        cerr<<"+===================================================================+"<<endl;
+        cerr<<endl;
+        cerr<<"Welcome to interactive mode!"<<endl;
+        cerr<<"Use ^D to write changes and exit"<<endl;
+        cerr<<"use ^C to exit without writing changes"<<endl;
       }
-      //maybe add stdin support?
-      while(commands.good()) {
+      else {
+        commands.open(scriptfile.c_str());
+        if(!commands.is_open()) {
+          cerr<<"Failed to open file "<<v<<endl;
+          return 1;
+        }
+      }
+
+      while( ( useStdin && cin.good() ) || ( !useStdin && commands.good() ) ) {
         string s;
-        getline(commands, s);
+        if(useStdin) {
+          cerr<<endl<<">";
+          getline(cin, s);
+        }
+        else
+          getline(commands, s);
         if(s.length() == 0 || firstNonWhitespaceCharacter(s) == '#')
           continue;
         split(s, " ", c, v);
-        if(debug_script) //endl at beginning to improve readability
+        if(debug_script && !useStdin) //endl at beginning to improve readability
           cerr<<endl<<"SCRIPT> "<<c<<" "<<v<<endl;
+
         process(c,v);
       }
       //we'r assuming that there was set/add/del command used and regenerating file
