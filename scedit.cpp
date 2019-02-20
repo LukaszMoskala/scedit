@@ -308,15 +308,10 @@ int main(int args, char** argv) {
         if(ep != -1) {
           string c=s.substr(0,ep);
           string v=s.substr(ep+1);
-          //remove leading and trailing whitespaces
-          //copied from stack overflow, i have no idea how that works
-          //increases compilation time by 3 seconds, maybe should be moved to another statically-linked file?
-          //WARINING: If you have double-space in path, or any parameter, then you'r fucked
 
-          //TODO: implement without using regex
+          //remove leading and trailing whitespaces
           c=stripLeadingWhitespaces(c);
           c=stripTailingWhitespaces(c);
-
           v=stripLeadingWhitespaces(v);
           v=stripTailingWhitespaces(v);
 
