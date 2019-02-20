@@ -1,6 +1,7 @@
 CC=gcc
 CXX=g++
-CXXFLAGS=-O3 --std=c++17 -fexceptions
+#append these flags to command line flags
+override CXXFLAGS+=-O3 --std=c++17 -fexceptions
 PREFIX=/usr/local
 
 all: scedit
