@@ -105,7 +105,7 @@ struct share_t {
 vector <share_t> shares;
 
 /* DATA STRUCTURE DESCRIPTION:
-  +shares
+  +shares[]
     +string sharename : share name
     +bool writeback   : structure is written to file only if set to true(default), delete command changes this to false
     +pair_t conf[]    : all keys for this share
@@ -311,8 +311,6 @@ int main(int _args, char** _argv)
   argv=_argv;
   smbconf=getval("conf","/etc/samba/smb.conf");
   string scriptfile=getval("script","");
-
-
 
   if( !scriptfile.size() && ( (smbconf == "/etc/samba/smb.conf" && args < 3) || (smbconf != "/etc/samba/smb.conf" && args < 4) )) {
     cerr<<"WARINIG: THIS PROGRAM IS NOT MEANT FOR PRODUCTION USAGE! (YET)"<<endl;
