@@ -360,7 +360,7 @@ int main(int args, char** argv) {
 
           shares[currentshare].conf.push_back(p);
           if(debug_input)
-            cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<c<<"="<<v<<endl;
+            cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<p.k<<"="<<p.v<<endl;
         }
         catch(SubstrNotFoundException e) {
           //not a valid line, ignore exception and continue
