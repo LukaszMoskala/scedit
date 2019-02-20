@@ -25,7 +25,7 @@ using namespace std;
 //  path=/tmp/path         : this is key and value
 
 //[global] is recognized also as share
-//it just uses diffrent parameters
+//it just uses diffrent keys
 
 #include "exceptions.hpp"
 
@@ -109,7 +109,7 @@ vector <share_t> shares;
   +shares
     +string sharename : share name
     +bool writeback   : structure is written to file only if set to true(default), delete command changes this to false
-    +pair_t conf[]    : all parameters for this section
+    +pair_t conf[]    : all keys for this share
       +string k       : config file key
       +string v       : config file value
       +bool writeback : same as above
@@ -125,7 +125,7 @@ int sharenametoid(string sharename) {
 }
 
 //converts key to it's index in shares->conf vector
-//throws ParamNotFoundException on failue
+//throws KeyNotFoundException on failue
 int keytoid(int shareid, string key) {
   for(int i=0;i<shares[shareid].conf.size();i++) {
     if(shares[shareid].conf[i].k == key) return i;
@@ -136,7 +136,7 @@ int keytoid(int shareid, string key) {
 //sets config like this
 /*
 [sharename]
-  paramname=value
+  key=value
 */
 //share must exist before
 void cmdSet(string sharename, string key, string value) {
@@ -149,20 +149,20 @@ void cmdSet(string sharename, string key, string value) {
     shares[sid].conf[pid].v=value;
     shares[sid].conf[pid].writeback=true;
     if(debug_command_result)
-      cerr<<"Edited parameter "<<key<<" in section "<<sharename<<" with value "<<value<<endl;
+      cerr<<"Edited key "<<key<<" in share "<<sharename<<" with value "<<value<<endl;
   }
   catch(KeyNotFoundException e) {
-    //parameter doesn't exist, so create it instead of editing
+    //key doesn't exist, so create it instead of editing
     pair_t p;
     p.k=key;
     p.v=value;
     p.writeback=true;
     shares[sid].conf.push_back(p);
     if(debug_command_result)
-      cerr<<"Created parameter "<<key<<" in section "<<sharename<<" with value "<<value<<endl;
+      cerr<<"Created key "<<key<<" in share "<<sharename<<" with value "<<value<<endl;
   }
 }
-//creates section like this in config
+//creates share like this in config
 /*
 [sharename]
 */
@@ -174,27 +174,27 @@ void cmdAdd(string sharename) {
   if(debug_command_result)
     cerr<<"Created share "<<sharename<<endl;
 }
-//deletes section like that created above and all parameters
+//deletes share like that created above and all keys
 void cmdDel(string sharename) {
   int sid=sharenametoid(sharename);
   shares[sid].writeback=false;
   if(debug_command_result)
     cerr<<"Deleted share "<<sharename<<endl;
 }
-//deletes one parameter from section
-void cmdDel(string sharename, string paramname) {
+//deletes one key from share
+void cmdDel(string sharename, string key) {
   int sid=sharenametoid(sharename);
-  int pid=keytoid(sid,paramname);
+  int pid=keytoid(sid,key);
   shares[sid].conf[pid].writeback=false;
   if(debug_command_result)
-    cerr<<"Deleted parameter "<<sharename<<"."<<paramname<<endl;
+    cerr<<"Deleted key "<<sharename<<"."<<key<<endl;
 }
-//reads value from sharename parameter
-void cmdGet(string sharename, string paramname) {
+//reads value from sharename key
+void cmdGet(string sharename, string key) {
   if(debug_command_parameters)
-  cerr<<sharename<<" "<<paramname<<endl;
+  cerr<<sharename<<" "<<key<<endl;
   int sid=sharenametoid(sharename);
-  int pid=keytoid(sid,paramname);
+  int pid=keytoid(sid,key);
     cout<<shares[sid].conf[pid].v<<endl;
 }
 
@@ -271,23 +271,18 @@ void regen() {
     cerr<<"Failed to open "<<smbconf<<" to write!"<<endl;
     return;
   }
-  //write everything
-  //looks complicated, but it's simple and complicated at the same time
-
-  //i'll try to comment this now
-
   //iterate through all shares in our config file
   for(int i=0;i<shares.size();i++) {
     //if writeback is set to false, we have to skip it
     //that's how deleting shares work
     if(shares[i].writeback) {
-      //write section header to config
+      //write share header to config
       wcf<<"["<<shares[i].sharename<<"]"<<endl;
-      //iterate through all parameters for this section
+      //iterate through all keys for this share
       for(int j=0;j<shares[i].conf.size();j++) {
         //if writeback is set to false, skip
         if(shares[i].conf[j].writeback)
-          //write param=value pair to file
+          //write key=value pair to file
           wcf<<"  "<<shares[i].conf[j].k<<"="<<shares[i].conf[j].v<<endl;
       }
     }
@@ -304,7 +299,7 @@ int main(int args, char** argv) {
     cerr<<"              get sharename.key             - get key in share"<<endl;
     cerr<<"              add sharename                 - create share"<<endl;
     cerr<<"              del sharename                 - delete share"<<endl;
-    cerr<<"              del sharename.paramname       - delete key from share definition"<<endl;
+    cerr<<"              del sharename.key             - delete key from share definition"<<endl;
     cerr<<"              f   filename                  - execute commands from file filename (script mode)"<<endl;
     cerr<<endl;
     cerr<<"scedit Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
@@ -330,14 +325,14 @@ int main(int args, char** argv) {
       getline(smbconffile,s);
       char c=firstNonWhitespaceCharacter(s);
       if(c == '#' || c == ';') continue; //skip comments
-      if(c == '[') //beginning of section
+      if(c == '[') //beginning of share
       {
         currentshare++;
         share_t st;
         s=stripWhitespaces(s); //before anything else
         s=s.substr(1,s.length()-2); //remote ']' from string
         if(debug_input)
-          cerr<<"INPUT: using section "<<s<<endl;
+          cerr<<"INPUT: using share "<<s<<endl;
         st.sharename=s;
         st.writeback=true;
         shares.push_back(st);
