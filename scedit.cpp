@@ -386,7 +386,7 @@ int main(int args, char** argv) {
       while(commands.good()) {
         string s;
         getline(commands, s);
-        if(s.length() == 0 || s[0] == '#')
+        if(s.length() == 0 || firstNonWhitespaceCharacter(s) == '#')
           continue;
         split(s, " ", c, v);
         if(debug_script) //endl at beginning to improve readability
