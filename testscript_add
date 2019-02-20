@@ -1,9 +1,11 @@
 add testshare
-set testshare.path=/tmp/testshare
-set testshare.writeable=no
-set testshare.valid users=root
-set testshare.browseable=yes
-set testshare.guest ok=no
-set testshare.public=no
-set testshare.create mask=644
-set testshare.directory mask=755
+set .path=/tmp/testshare
+set .writeable=no
+set .valid users=root
+set .browseable=yes
+set .guest ok=no
+set .public=no
+set .create mask=644
+set .directory mask=755
+del global.security
+del .workgroup

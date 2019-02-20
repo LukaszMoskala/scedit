@@ -183,10 +183,16 @@ void cmdGet(string sharename, string paramname) {
 
 //does processing of arguments
 //i have no idea how the fuck this works
+
+string lastshare="";
 int process(string cmd, string param) {
   if(cmd == "set") {
     int dp=param.find(".");
     string sn=param.substr(0,dp); // get share name
+    if(sn == "" && lastshare != "")
+      sn=lastshare; //not specified share name, so use what was used before
+    else
+      lastshare=sn;
     string pnv=param.substr(dp+1); //get key=value
     int ep=pnv.find("=");
     string pn=pnv.substr(0,ep); //   get key
@@ -201,11 +207,16 @@ int process(string cmd, string param) {
   }
   if(cmd == "add") {
     cmdAdd(param);
+    lastshare=param;
   }
   if(cmd == "del") {
     int dp=param.find(".");
     if(dp != -1) {
       string sn=param.substr(0,dp);
+      if(sn == "" && lastshare != "")
+        sn=lastshare; //not specified share name, so use what was used before
+      else
+        lastshare=sn;
       string pn=param.substr(dp+1);
       cmdDel(sn,pn);
     }
