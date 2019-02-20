@@ -202,6 +202,14 @@ void cmdGet(string sharename, string paramname) {
 //i have no idea how the fuck this works
 
 string lastshare="";
+
+void processshare(string& s) {
+  if(s == "" && lastshare != "")
+    s=lastshare;
+  else
+    lastshare=s;
+}
+
 int process(string cmd, string param) {
   if(cmd == "setwriteback") {
     if(param == "true")  {
@@ -218,20 +226,14 @@ int process(string cmd, string param) {
   if(cmd == "set") {
     string sn,pnv,pn,v;
     split(param, ".", sn,pnv);
-    if(sn == "" && lastshare != "")
-      sn=lastshare; //not specified share name, so use what was used before
-    else
-      lastshare=sn;
+    processshare(sn);
     split(pnv,"=",pn,v);
     cmdSet(sn,pn,v);
   }
   if(cmd == "get") {
     string sn,pn;
     split(param, ".",sn,pn);
-    if(sn == "" && lastshare != "")
-      sn=lastshare; //not specified share name, so use what was used before
-    else
-      lastshare=sn;
+    processshare(sn);
     cmdGet(sn,pn);
   }
   if(cmd == "add") {
@@ -242,10 +244,7 @@ int process(string cmd, string param) {
     string sn,pn;
     try {
       split(param, ".", sn,pn);
-      if(sn == "" && lastshare != "")
-        sn=lastshare; //not specified share name, so use what was used before
-      else
-        lastshare=sn;
+      processshare(sn);
       cmdDel(sn,pn);
     }
     catch(SubstrNotFoundException e) {
@@ -358,7 +357,7 @@ int main(int args, char** argv) {
           p.k=stripTailingWhitespaces(p.k);
           p.v=stripLeadingWhitespaces(p.v);
           p.v=stripTailingWhitespaces(p.v);
-          
+
           shares[currentshare].conf.push_back(p);
           if(debug_input)
             cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<c<<"="<<v<<endl;
