@@ -338,9 +338,13 @@ int main(int _args, char** _argv)
     cerr<<"Usage: scedit [script=..] [conf=..] <command> <command parameter>"<<endl;
     cerr<<"scedit set sharename.key=value       - set key in share"<<endl;
     cerr<<"       get sharename.key             - get key in share"<<endl;
+    cerr<<"       get sharename                 - get all keys in share (*)"<<endl;
+    cerr<<"       get shares                    - get all shares (*)"<<endl;
     cerr<<"       add sharename                 - create share"<<endl;
     cerr<<"       del sharename                 - delete share"<<endl;
     cerr<<"       del sharename.key             - delete key from share definition"<<endl;
+    cerr<<endl;
+    cerr<<"(*) Designed for interactive mode - output to STDERR"<<endl;
     cerr<<endl;
     cerr<<"Passing options:"<<endl;
     cerr<<"scedit script=filename.txt - executes command from filename.txt, commands from command line ignored"<<endl;
