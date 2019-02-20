@@ -359,7 +359,7 @@ int main(int _args, char** _argv)
         currentshare++;
         share_t st;
         s=stripWhitespaces(s); //before anything else
-        s=s.substr(1,s.length()-2); //remote ']' from string
+        s=s.substr(1,s.length()-2); //remove '[' and ']' from string
         if(debug_input)
           cerr<<"INPUT: using share "<<s<<endl;
         st.sharename=s;
@@ -368,8 +368,6 @@ int main(int _args, char** _argv)
       }
       else
       {
-        //we'r not using split here, because here a lot exceptions may be thrown
-        //and that's possible performance problem
         try {
           pair_t p;
           p.writeback=true;
@@ -384,11 +382,7 @@ int main(int _args, char** _argv)
           if(debug_input)
             cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<p.k<<"="<<p.v<<endl;
         }
-        catch(SubstrNotFoundException e) {
-          //not a valid line, ignore exception and continue
-          //program execution because it may happen
-          //for many reasons, eg empty line in file
-        }
+        catch(SubstrNotFoundException e) {} //ignore that exception, we know that it may occur
       }
     }
     if(!scriptfile.size()) {
