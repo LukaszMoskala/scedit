@@ -20,6 +20,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstring> //strerror
 using namespace std;
 
+//In your samba config file:
+//[somename]               : this is share name
+//  path=/tmp/path         : this is key and value
+
+//[global] is recognized also as share
+//it just uses diffrent parameters
 
 #include "exceptions.hpp"
 
@@ -69,19 +75,19 @@ struct pair_t {
   string v;
   bool writeback=true;
 };
-//used to store sections and it's key=value pairs
+//used to store shares and it's key=value pairs
 //writeback works as above
-struct section_t {
-  string section;
+struct share_t {
+  string sharename;
   bool writeback=true;
   vector <pair_t> conf;
 };
 //we have to store this somewhere, don't we?
-vector <section_t> sections;
+vector <share_t> shares;
 
 /* DATA STRUCTURE DESCRIPTION:
-  +sections
-    +string section   : section name
+  +shares
+    +string sharename : share name
     +bool writeback   : structure is written to file only if set to true(default), delete command changes this to false
     +pair_t conf[]    : all parameters for this section
       +string k       : config file key
@@ -89,18 +95,20 @@ vector <section_t> sections;
       +bool writeback : same as above
 */
 
-//converts share name to it's index in sections vector
+//converts share name to it's index in shares vector
+//throws SMBShareNotFoundException on failure
 int sharenametoid(string sharename) {
-  for(int i=0;i<sections.size();i++) {
-    if(sections[i].section == sharename) return i;
+  for(int i=0;i<shares.size();i++) {
+    if(shares[i].sharename == sharename) return i;
   }
   throw smbsnfexception;
 }
 
-//converts key to it's index in sections->conf vector
-int paramnametoid(int sectionid, string paramname) {
-  for(int i=0;i<sections[sectionid].conf.size();i++) {
-    if(sections[sectionid].conf[i].k == paramname) return i;
+//converts key to it's index in shares->conf vector
+//throws ParamNotFoundException on failue
+int paramnametoid(int shareid, string key) {
+  for(int i=0;i<shares[shareid].conf.size();i++) {
+    if(shares[shareid].conf[i].k == key) return i;
   }
   throw pnfexception;
 }
@@ -110,55 +118,56 @@ int paramnametoid(int sectionid, string paramname) {
 [sharename]
   paramname=value
 */
-void cmdSet(string sharename, string paramname, string value) {
+//share must exist before
+void cmdSet(string sharename, string key, string value) {
   if(debug_command_parameters)
-  cerr<<sharename<<" "<<paramname<<" "<<value<<endl;
+  cerr<<sharename<<" "<<key<<" "<<value<<endl;
   int sid=sharenametoid(sharename);
   try {
-    int pid=paramnametoid(sid,paramname);
+    int pid=paramnametoid(sid,key);
     //if following code executes, no exception were thrown
-    sections[sid].conf[pid].v=value;
-    sections[sid].conf[pid].writeback=true;
+    shares[sid].conf[pid].v=value;
+    shares[sid].conf[pid].writeback=true;
     if(debug_command_result)
-      cerr<<"Edited parameter "<<paramname<<" in section "<<sharename<<" with value "<<value<<endl;
+      cerr<<"Edited parameter "<<key<<" in section "<<sharename<<" with value "<<value<<endl;
   }
   catch(ParamNotFoundException e) {
     //parameter doesn't exist, so create it instead of editing
     pair_t p;
-    p.k=paramname;
+    p.k=key;
     p.v=value;
     p.writeback=true;
-    sections[sid].conf.push_back(p);
+    shares[sid].conf.push_back(p);
     if(debug_command_result)
-      cerr<<"Created parameter "<<paramname<<" in section "<<sharename<<" with value "<<value<<endl;
+      cerr<<"Created parameter "<<key<<" in section "<<sharename<<" with value "<<value<<endl;
   }
 }
 //creates section like this in config
 /*
-[sectionname]
+[sharename]
 */
-void cmdAdd(string sectionname) {
-  section_t st;
-  st.section=sectionname;
+void cmdAdd(string sharename) {
+  share_t st;
+  st.sharename=sharename;
   st.writeback=true;
-  sections.push_back(st);
+  shares.push_back(st);
   if(debug_command_result)
-    cerr<<"Created share "<<sectionname<<endl;
+    cerr<<"Created share "<<sharename<<endl;
 }
 //deletes section like that created above and all parameters
-void cmdDel(string sectionname) {
-  int sid=sharenametoid(sectionname);
-  sections[sid].writeback=false;
+void cmdDel(string sharename) {
+  int sid=sharenametoid(sharename);
+  shares[sid].writeback=false;
   if(debug_command_result)
-    cerr<<"Deleted share "<<sectionname<<endl;
+    cerr<<"Deleted share "<<sharename<<endl;
 }
 //deletes one parameter from section
-void cmdDel(string sectionname, string paramname) {
-  int sid=sharenametoid(sectionname);
+void cmdDel(string sharename, string paramname) {
+  int sid=sharenametoid(sharename);
   int pid=paramnametoid(sid,paramname);
-  sections[sid].conf[pid].writeback=false;
+  shares[sid].conf[pid].writeback=false;
   if(debug_command_result)
-    cerr<<"Deleted parameter "<<sectionname<<"."<<paramname<<endl;
+    cerr<<"Deleted parameter "<<sharename<<"."<<paramname<<endl;
 }
 //reads value from sharename parameter
 void cmdGet(string sharename, string paramname) {
@@ -166,7 +175,7 @@ void cmdGet(string sharename, string paramname) {
   cerr<<sharename<<" "<<paramname<<endl;
   int sid=sharenametoid(sharename);
   int pid=paramnametoid(sid,paramname);
-    cout<<sections[sid].conf[pid].v<<endl;
+    cout<<shares[sid].conf[pid].v<<endl;
 }
 
 //does processing of arguments
@@ -224,19 +233,19 @@ void regen() {
 
   //i'll try to comment this now
 
-  //iterate through all sections in our config file
-  for(int i=0;i<sections.size();i++) {
+  //iterate through all shares in our config file
+  for(int i=0;i<shares.size();i++) {
     //if writeback is set to false, we have to skip it
-    //that's how deleting sections work
-    if(sections[i].writeback) {
+    //that's how deleting shares work
+    if(shares[i].writeback) {
       //write section header to config
-      wcf<<"["<<sections[i].section<<"]"<<endl;
+      wcf<<"["<<shares[i].sharename<<"]"<<endl;
       //iterate through all parameters for this section
-      for(int j=0;j<sections[i].conf.size();j++) {
+      for(int j=0;j<shares[i].conf.size();j++) {
         //if writeback is set to false, skip
-        if(sections[i].conf[j].writeback)
+        if(shares[i].conf[j].writeback)
           //write param=value pair to file
-          wcf<<"  "<<sections[i].conf[j].k<<"="<<sections[i].conf[j].v<<endl;
+          wcf<<"  "<<shares[i].conf[j].k<<"="<<shares[i].conf[j].v<<endl;
       }
     }
   }
@@ -272,7 +281,7 @@ int main(int args, char** argv) {
       cerr<<"ERROR: Failed to open smb.conf"<<endl;
       return 1;
     }
-    int currentsection=-1;
+    int currentshare=-1;
     //this parses config file
     while(smbconffile.good()) {
       string s;
@@ -281,15 +290,15 @@ int main(int args, char** argv) {
       if(c == '#' || c == ';') continue; //skip comments
       if(c == '[') //beginning of section
       {
-        currentsection++;
-        section_t st;
+        currentshare++;
+        share_t st;
         s=stripWhitespaces(s); //before anything else
         s=s.substr(1,s.length()-2);
         if(debug_input)
           cerr<<"INPUT: using section "<<s<<endl;
-        st.section=s;
+        st.sharename=s;
         st.writeback=true;
-        sections.push_back(st);
+        shares.push_back(st);
       }
       else
       {
@@ -313,9 +322,9 @@ int main(int args, char** argv) {
           p.k=c;
           p.v=v;
           p.writeback=true;
-          sections[currentsection].conf.push_back(p);
+          shares[currentshare].conf.push_back(p);
           if(debug_input)
-            cerr<<"INPUT: "<<sections[currentsection].section<<"."<<c<<"="<<v<<endl;
+            cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<c<<"="<<v<<endl;
         }
       }
     }
