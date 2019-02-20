@@ -70,6 +70,17 @@ string stripTailingWhitespaces(string s) {
   while(isWhistespace(s[--i]));
   return s.substr(0,i+1);
 }
+
+void split(string src, string tofind, string& out1, string& out2) {
+  int pos=src.find(tofind);
+  if(pos == -1)
+    throw ssnfexception;
+  int len=tofind.length();
+
+  out1=src.substr(0,pos);
+  out2=src.substr(pos+len);
+}
+
 //pair of key=value
 //if writeback is set to false, this entry will be skipped when
 //writing config file
@@ -188,21 +199,22 @@ string lastshare="";
 int process(string cmd, string param) {
   if(cmd == "set") {
     int dp=param.find(".");
-    string sn=param.substr(0,dp); // get share name
+    string sn,pnv,pn,v;
+    split(param, ".", sn,pnv);
     if(sn == "" && lastshare != "")
       sn=lastshare; //not specified share name, so use what was used before
     else
       lastshare=sn;
-    string pnv=param.substr(dp+1); //get key=value
-    int ep=pnv.find("=");
-    string pn=pnv.substr(0,ep); //   get key
-    string v=pnv.substr(ep+1);  //   get value
+    split(pnv,"=",pn,v);
     cmdSet(sn,pn,v);
   }
   if(cmd == "get") {
-    int dp=param.find(".");
-    string sn=param.substr(0,dp); //get share name
-    string pn=param.substr(dp+1); //get key
+    string sn,pn;
+    split(param, ".",sn,pn);
+    if(sn == "" && lastshare != "")
+      sn=lastshare; //not specified share name, so use what was used before
+    else
+      lastshare=sn;
     cmdGet(sn,pn);
   }
   if(cmd == "add") {
@@ -210,17 +222,16 @@ int process(string cmd, string param) {
     lastshare=param;
   }
   if(cmd == "del") {
-    int dp=param.find(".");
-    if(dp != -1) {
-      string sn=param.substr(0,dp);
+    string sn,pn;
+    try {
+      split(param, ".", sn,pn);
       if(sn == "" && lastshare != "")
         sn=lastshare; //not specified share name, so use what was used before
       else
         lastshare=sn;
-      string pn=param.substr(dp+1);
       cmdDel(sn,pn);
     }
-    else {
+    catch(SubstrNotFoundException e) {
       cmdDel(param);
     }
   }
@@ -306,7 +317,7 @@ int main(int args, char** argv) {
         currentshare++;
         share_t st;
         s=stripWhitespaces(s); //before anything else
-        s=s.substr(1,s.length()-2);
+        s=s.substr(1,s.length()-2); //remote ']' from string
         if(debug_input)
           cerr<<"INPUT: using section "<<s<<endl;
         st.sharename=s;
@@ -315,6 +326,8 @@ int main(int args, char** argv) {
       }
       else
       {
+        //we'r not using split here, because here a lot exceptions may be thrown
+        //and that's possible performance problem
         int ep=s.find("=");
         if(ep != -1) {
           string c=s.substr(0,ep);
@@ -355,11 +368,7 @@ int main(int args, char** argv) {
         getline(commands, s);
         if(s.length() == 0 || s[0] == '#')
           continue;
-        //first space seperates command from data
-        int space=s.find(" ");
-        //split skipping that space
-        c=s.substr(0,space);
-        v=s.substr(space+1);
+        split(s, " ", c, v);
         process(c,v);
       }
       //we'r assuming that there was set/add/del command used and regenerating file

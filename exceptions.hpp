@@ -17,3 +17,11 @@ class KeyNotFoundException: public exception
     return "Key Not Found Exception";
   }
 } knfexception;
+
+class SubstrNotFoundException: public exception
+{
+  virtual const char* what() const throw()
+  {
+    return "Substring Not Found Exception";
+  }
+} ssnfexception;
