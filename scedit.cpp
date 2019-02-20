@@ -300,14 +300,12 @@ int main(int args, char** argv) {
     //todo: use gnu DD-like command line arguments
     cerr<<"WARINIG: THIS PROGRAM IS NOT MEANT FOR PRODUCTION USAGE! (YET)"<<endl;
     cerr<<endl;
-    cerr<<"Usage: scedit set sharename.paramname=value - set parameter in share"<<endl;
-    cerr<<"              get sharename.paramname       - get parameter in share (*)"<<endl;
+    cerr<<"Usage: scedit set sharename.key=value       - set key in share"<<endl;
+    cerr<<"              get sharename.key             - get key in share"<<endl;
     cerr<<"              add sharename                 - create share"<<endl;
     cerr<<"              del sharename                 - delete share"<<endl;
-    cerr<<"              del sharename.paramname       - delete parameter from share"<<endl;
-    cerr<<"              f   filename                  - execute commands from file filename"<<endl;
-    cerr<<endl;
-    cerr<<"(*) using AWK, GREP and SED in some combination probably would be and faster for scripting"<<endl;
+    cerr<<"              del sharename.paramname       - delete key from share definition"<<endl;
+    cerr<<"              f   filename                  - execute commands from file filename (script mode)"<<endl;
     cerr<<endl;
     cerr<<"scedit Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
     cerr<<"This program comes with ABSOLUTELY NO WARRANTY."<<endl;
