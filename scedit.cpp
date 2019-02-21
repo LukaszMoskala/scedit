@@ -72,9 +72,11 @@ string stripTailingWhitespaces(string s) {
 }
 
 void split(string src, string tofind, string& out1, string& out2) {
+  cerr<<"split: "<<src<<" "<<tofind<<endl;
   int pos=src.find(tofind);
-  if(pos == -1)
-    throw new SubstrNotFoundException;
+  if(pos == -1) {
+    throw (new SubstrNotFoundException);
+  }
   int len=tofind.length();
 
   out1=src.substr(0,pos);
@@ -120,7 +122,7 @@ int sharenametoid(string sharename) {
   for(int i=0;i<shares.size();i++) {
     if(shares[i].sharename == sharename) return i;
   }
-  throw new SMBShareNotFoundException;
+  throw (new SMBShareNotFoundException);
 }
 
 //converts key to it's index in shares->conf vector
@@ -129,7 +131,7 @@ int keytoid(int shareid, string key) {
   for(int i=0;i<shares[shareid].conf.size();i++) {
     if(shares[shareid].conf[i].k == key) return i;
   }
-  throw new KeyNotFoundException;
+  throw (new KeyNotFoundException);
 }
 
 //sets config like this
@@ -150,7 +152,7 @@ void cmdSet(string sharename, string key, string value) {
     if(debug_command_result)
       cerr<<"Edited key "<<key<<" in share "<<sharename<<" with value "<<value<<endl;
   }
-  catch(KeyNotFoundException e) {
+  catch(KeyNotFoundException* e) {
     //key doesn't exist, so create it instead of editing
     pair_t p;
     p.k=key;
@@ -240,7 +242,7 @@ int process(string cmd, string param) {
     //if this exception happens, there is no dot in parameter
     //that means that we have to look for other things, either
     //share, or all shares on server
-    catch(SubstrNotFoundException) {
+    catch(SubstrNotFoundException* e) {
       //this lists all shares on server
       if(param == "shares") {
         cout<<"Shares:"<<endl;
@@ -271,7 +273,7 @@ int process(string cmd, string param) {
       processshare(sn);
       cmdDel(sn,pn);
     }
-    catch(SubstrNotFoundException e) {
+    catch(SubstrNotFoundException* e) {
       cmdDel(param);
     }
   }
@@ -412,7 +414,7 @@ int main(int _args, char** _argv)
           if(debug_input)
             cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<p.k<<"="<<p.v<<endl;
         }
-        catch(SubstrNotFoundException e) {} //ignore that exception, we know that it may occur
+        catch(SubstrNotFoundException* e) {} //ignore that exception, we know that it may occur
       }
     }
     if(!scriptfile.size()) {
