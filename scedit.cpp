@@ -237,7 +237,11 @@ int process(string cmd, string param) {
       processshare(sn);
       cmdGet(sn,pn);
     }
+    //if this exception happens, there is no dot in parameter
+    //that means that we have to look for other things, either
+    //share, or all shares on server
     catch(SubstrNotFoundException) {
+      //this lists all shares on server
       if(param == "shares") {
         cout<<"Shares:"<<endl;
         for(int i=0;i<shares.size();i++) {
@@ -246,6 +250,7 @@ int process(string cmd, string param) {
         }
       }
       else {
+        //this lists all keys in given share and their values
         int id=sharenametoid(param);
         cerr<<"Keys in "<<param<<":"<<endl;
         for(int i=0;i<shares[id].conf.size();i++) {
