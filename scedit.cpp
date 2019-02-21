@@ -74,7 +74,7 @@ string stripTailingWhitespaces(string s) {
 void split(string src, string tofind, string& out1, string& out2) {
   int pos=src.find(tofind);
   if(pos == -1)
-    throw ssnfexception;
+    throw new SubstrNotFoundException;
   int len=tofind.length();
 
   out1=src.substr(0,pos);
@@ -120,7 +120,7 @@ int sharenametoid(string sharename) {
   for(int i=0;i<shares.size();i++) {
     if(shares[i].sharename == sharename) return i;
   }
-  throw smbsnfexception;
+  throw new SMBShareNotFoundException;
 }
 
 //converts key to it's index in shares->conf vector
@@ -129,7 +129,7 @@ int keytoid(int shareid, string key) {
   for(int i=0;i<shares[shareid].conf.size();i++) {
     if(shares[shareid].conf[i].k == key) return i;
   }
-  throw knfexception;
+  throw new KeyNotFoundException;
 }
 
 //sets config like this

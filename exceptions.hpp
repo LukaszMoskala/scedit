@@ -8,7 +8,7 @@ class SMBShareNotFoundException: public exception
   {
     return "Share Not Found Exception";
   }
-} smbsnfexception;
+};
 
 class KeyNotFoundException: public exception
 {
@@ -16,7 +16,7 @@ class KeyNotFoundException: public exception
   {
     return "Key Not Found Exception";
   }
-} knfexception;
+};
 
 class SubstrNotFoundException: public exception
 {
@@ -24,4 +24,4 @@ class SubstrNotFoundException: public exception
   {
     return "Substring Not Found Exception";
   }
-} ssnfexception;
+};
