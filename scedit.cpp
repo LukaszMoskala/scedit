@@ -278,22 +278,23 @@ int process(string cmd, string param) {
   return 1;
 }
 //re-generates new samba config file
-void regen() {
+int regen() {
+  //user set this, so that isn't error, just display warning and return 0
   if(!writeback) {
     cerr<<"WARNING: writeback set to false, refusing to write!"<<endl;
-    return;
+    return 0;
   }
   string smbconfbak=smbconf+".bak";
 
   if(rename(smbconf.c_str(),smbconfbak.c_str())) {
     cerr<<"rename( "<<smbconf<<", "<<smbconfbak<<") failed: "<<strerror(errno)<<endl;
-    return;
+    return 1;
   }
   ofstream wcf;
   wcf.open(smbconf.c_str());
   if(!wcf.is_open()) {
     cerr<<"Failed to open "<<smbconf<<" to write!"<<endl;
-    return;
+    return 1;
   }
   //iterate through all shares in our config file
   for(int i=0;i<shares.size();i++) {
@@ -313,6 +314,7 @@ void regen() {
   }
   //finally, close file
   wcf.close();
+  return 0;
 }
 int args;
 char** argv;
@@ -417,7 +419,7 @@ int main(int _args, char** _argv)
       process(c,v);
       //only get command doesn't require to regenerate file
       if(c != "get" && c != "show")
-        regen();
+        return regen(); //return regen return code
     }
     else {
       bool useStdin=(scriptfile == "-");
@@ -461,7 +463,8 @@ int main(int _args, char** _argv)
         process(c,v);
       }
       //we'r assuming that there was set/add/del command used and regenerating file
-      regen();
+      //and return it's return code as program return code
+      return regen();
     }
   }
 
