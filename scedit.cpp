@@ -342,8 +342,6 @@ int main(int _args, char** _argv)
   string scriptfile=getval("script","");
 
   if( !scriptfile.size() && ( (smbconf == "/etc/samba/smb.conf" && args < 3) || (smbconf != "/etc/samba/smb.conf" && args < 4) )) {
-    cerr<<"WARINIG: THIS PROGRAM IS NOT MEANT FOR PRODUCTION USAGE! (YET)"<<endl;
-    cerr<<endl;
     cerr<<"Usage: scedit [script=..] [conf=..] <command> <command parameter>"<<endl;
     cerr<<"scedit set sharename.key=value       - set key in share"<<endl;
     cerr<<"       get sharename.key             - get key in share"<<endl;
