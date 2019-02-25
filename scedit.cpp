@@ -72,7 +72,8 @@ string stripTailingWhitespaces(string s) {
 }
 
 void split(string src, string tofind, string& out1, string& out2) {
-  cerr<<"split: "<<src<<" "<<tofind<<endl;
+  if(debug_command_parameters)
+    cerr<<"split: "<<src<<" "<<tofind<<endl;
   int pos=src.find(tofind);
   if(pos == -1) {
     throw (new SubstrNotFoundException);
