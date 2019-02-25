@@ -14,13 +14,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#include <fstream>
-#include <vector>
-#include <iostream>
-#include <cstring> //strerror
+#include <fstream>  //File I/O
+                    //ifstream, ofstream
+#include <vector>   //variable-length arrays
+#include <iostream> //STDIO
+#include <cstring>  //strerror
 using namespace std;
 
-//In your samba config file:
+//Naming convention in your samba config file:
 //[somename]               : this is share name
 //  path=/tmp/path         : this is key and value
 
