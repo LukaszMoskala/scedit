@@ -14,13 +14,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#include <fstream>
-#include <vector>
-#include <iostream>
-#include <cstring> //strerror
+#include <fstream>  //File I/O
+                    //ifstream, ofstream
+#include <vector>   //variable-length arrays
+#include <iostream> //STDIO
+#include <cstring>  //strerror
 using namespace std;
 
-//In your samba config file:
+//Naming convention in your samba config file:
 //[somename]               : this is share name
 //  path=/tmp/path         : this is key and value
 
@@ -72,9 +73,12 @@ string stripTailingWhitespaces(string s) {
 }
 
 void split(string src, string tofind, string& out1, string& out2) {
+  if(debug_command_parameters)
+    cerr<<"split: "<<src<<" "<<tofind<<endl;
   int pos=src.find(tofind);
-  if(pos == -1)
-    throw ssnfexception;
+  if(pos == -1) {
+    throw (new SubstrNotFoundException);
+  }
   int len=tofind.length();
 
   out1=src.substr(0,pos);
@@ -105,7 +109,7 @@ struct share_t {
 vector <share_t> shares;
 
 /* DATA STRUCTURE DESCRIPTION:
-  +shares
+  +shares[]
     +string sharename : share name
     +bool writeback   : structure is written to file only if set to true(default), delete command changes this to false
     +pair_t conf[]    : all keys for this share
@@ -120,7 +124,7 @@ int sharenametoid(string sharename) {
   for(int i=0;i<shares.size();i++) {
     if(shares[i].sharename == sharename) return i;
   }
-  throw smbsnfexception;
+  throw (new SMBShareNotFoundException);
 }
 
 //converts key to it's index in shares->conf vector
@@ -129,7 +133,7 @@ int keytoid(int shareid, string key) {
   for(int i=0;i<shares[shareid].conf.size();i++) {
     if(shares[shareid].conf[i].k == key) return i;
   }
-  throw knfexception;
+  throw (new KeyNotFoundException);
 }
 
 //sets config like this
@@ -150,7 +154,7 @@ void cmdSet(string sharename, string key, string value) {
     if(debug_command_result)
       cerr<<"Edited key "<<key<<" in share "<<sharename<<" with value "<<value<<endl;
   }
-  catch(KeyNotFoundException e) {
+  catch(KeyNotFoundException* e) {
     //key doesn't exist, so create it instead of editing
     pair_t p;
     p.k=key;
@@ -214,14 +218,15 @@ int process(string cmd, string param) {
     if(param == "true")  {
       writeback=true;
       if(debug_command_result)
-        cout<<"Writeback set to TRUE, at end of execution config will be saved"<<endl;
+        cerr<<"Writeback set to TRUE, at end of execution config will be saved"<<endl;
     }
     if(param == "false")  {
       writeback=false;
       if(debug_command_result)
-        cout<<"Writeback set to FALSE, at end of execution config will NOT be saved"<<endl;
+        cerr<<"Writeback set to FALSE, at end of execution config will NOT be saved"<<endl;
     }
   }
+
   if(cmd == "set") {
     string sn,pnv,pn,v;
     split(param, ".", sn,pnv);
@@ -230,10 +235,34 @@ int process(string cmd, string param) {
     cmdSet(sn,pn,v);
   }
   if(cmd == "get") {
-    string sn,pn;
-    split(param, ".",sn,pn);
-    processshare(sn);
-    cmdGet(sn,pn);
+    try {
+      string sn,pn;
+      split(param, ".",sn,pn);
+      processshare(sn);
+      cmdGet(sn,pn);
+    }
+    //if this exception happens, there is no dot in parameter
+    //that means that we have to look for other things, either
+    //share, or all shares on server
+    catch(SubstrNotFoundException* e) {
+      //this lists all shares on server
+      if(param == "shares") {
+        cout<<"Shares:"<<endl;
+        for(int i=0;i<shares.size();i++) {
+          if(shares[i].writeback)
+            cerr<<" - "<<shares[i].sharename<<endl;
+        }
+      }
+      else {
+        //this lists all keys in given share and their values
+        int id=sharenametoid(param);
+        cerr<<"Keys in "<<param<<":"<<endl;
+        for(int i=0;i<shares[id].conf.size();i++) {
+          if(shares[id].conf[i].writeback)
+            cerr<<" - "<<shares[id].conf[i].k<<" = "<<shares[id].conf[i].v<<endl;
+        }
+      }
+    }
   }
   if(cmd == "add") {
     cmdAdd(param);
@@ -246,29 +275,30 @@ int process(string cmd, string param) {
       processshare(sn);
       cmdDel(sn,pn);
     }
-    catch(SubstrNotFoundException e) {
+    catch(SubstrNotFoundException* e) {
       cmdDel(param);
     }
   }
   return 1;
 }
 //re-generates new samba config file
-void regen() {
+int regen() {
+  //user set this, so that isn't error, just display warning and return 0
   if(!writeback) {
     cerr<<"WARNING: writeback set to false, refusing to write!"<<endl;
-    return;
+    return 0;
   }
   string smbconfbak=smbconf+".bak";
 
   if(rename(smbconf.c_str(),smbconfbak.c_str())) {
     cerr<<"rename( "<<smbconf<<", "<<smbconfbak<<") failed: "<<strerror(errno)<<endl;
-    return;
+    return 1;
   }
   ofstream wcf;
   wcf.open(smbconf.c_str());
   if(!wcf.is_open()) {
     cerr<<"Failed to open "<<smbconf<<" to write!"<<endl;
-    return;
+    return 1;
   }
   //iterate through all shares in our config file
   for(int i=0;i<shares.size();i++) {
@@ -288,6 +318,7 @@ void regen() {
   }
   //finally, close file
   wcf.close();
+  return 0;
 }
 int args;
 char** argv;
@@ -312,20 +343,21 @@ int main(int _args, char** _argv)
   smbconf=getval("conf","/etc/samba/smb.conf");
   string scriptfile=getval("script","");
 
-
-
   if( !scriptfile.size() && ( (smbconf == "/etc/samba/smb.conf" && args < 3) || (smbconf != "/etc/samba/smb.conf" && args < 4) )) {
-    cerr<<"WARINIG: THIS PROGRAM IS NOT MEANT FOR PRODUCTION USAGE! (YET)"<<endl;
-    cerr<<endl;
     cerr<<"Usage: scedit [script=..] [conf=..] <command> <command parameter>"<<endl;
     cerr<<"scedit set sharename.key=value       - set key in share"<<endl;
     cerr<<"       get sharename.key             - get key in share"<<endl;
+    cerr<<"       get sharename                 - get all keys in share (*)"<<endl;
+    cerr<<"       get shares                    - get all shares (*)"<<endl;
     cerr<<"       add sharename                 - create share"<<endl;
     cerr<<"       del sharename                 - delete share"<<endl;
     cerr<<"       del sharename.key             - delete key from share definition"<<endl;
     cerr<<endl;
+    cerr<<"(*) Designed for interactive mode - output to STDERR"<<endl;
+    cerr<<endl;
     cerr<<"Passing options:"<<endl;
     cerr<<"scedit script=filename.txt - executes command from filename.txt, commands from command line ignored"<<endl;
+    cerr<<"scedit script=-            - interactive mode"<<endl;
     cerr<<"scedit conf=/my/path/to/smb.conf - sets path to smb.conf file, can be combined with other commands"<<endl;
     cerr<<endl;
     cerr<<"scedit Copyright (C) 2019 Łukasz Konrad Moskała"<<endl;
@@ -382,35 +414,59 @@ int main(int _args, char** _argv)
           if(debug_input)
             cerr<<"INPUT: "<<shares[currentshare].sharename<<"."<<p.k<<"="<<p.v<<endl;
         }
-        catch(SubstrNotFoundException e) {} //ignore that exception, we know that it may occur
+        catch(SubstrNotFoundException* e) {} //ignore that exception, we know that it may occur
       }
     }
     if(!scriptfile.size()) {
       process(c,v);
       //only get command doesn't require to regenerate file
-      if(c != "get")
-        regen();
+      if(c != "get" && c != "show")
+        return regen(); //return regen return code
     }
     else {
+      bool useStdin=(scriptfile == "-");
+
       ifstream commands;
-      commands.open(scriptfile.c_str());
-      if(!commands.is_open()) {
-        cerr<<"Failed to open file "<<v<<endl;
-        return 1;
+      if(useStdin) {
+        cerr<<endl;
+        cerr<<"+===================================================================+"<<endl;
+        cerr<<"| scedit Copyright (C) 2019 Łukasz Konrad Moskała                   |"<<endl;
+        cerr<<"| This program comes with ABSOLUTELY NO WARRANTY.                   |"<<endl;
+        cerr<<"| This is free software, and you are welcome to redistribute it     |"<<endl;
+        cerr<<"| under certain conditions; Read attached license file for details. |"<<endl;
+        cerr<<"+===================================================================+"<<endl;
+        cerr<<endl;
+        cerr<<"Welcome to interactive mode!"<<endl;
+        cerr<<"Use ^D to write changes and exit"<<endl;
+        cerr<<"use ^C to exit without writing changes"<<endl;
       }
-      //maybe add stdin support?
-      while(commands.good()) {
+      else {
+        commands.open(scriptfile.c_str());
+        if(!commands.is_open()) {
+          cerr<<"Failed to open file "<<v<<endl;
+          return 1;
+        }
+      }
+
+      while( ( useStdin && cin.good() ) || ( !useStdin && commands.good() ) ) {
         string s;
-        getline(commands, s);
+        if(useStdin) {
+          cerr<<endl<<">";
+          getline(cin, s);
+        }
+        else
+          getline(commands, s);
         if(s.length() == 0 || firstNonWhitespaceCharacter(s) == '#')
           continue;
         split(s, " ", c, v);
-        if(debug_script) //endl at beginning to improve readability
+        if(debug_script && !useStdin) //endl at beginning to improve readability
           cerr<<endl<<"SCRIPT> "<<c<<" "<<v<<endl;
+
         process(c,v);
       }
       //we'r assuming that there was set/add/del command used and regenerating file
-      regen();
+      //and return it's return code as program return code
+      return regen();
     }
   }
 
